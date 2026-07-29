@@ -376,8 +376,8 @@
     editImportoTotale.textContent = formatEuro(0);
     // Nascondi sezione ricorrente
     editRicorrenteSection.style.display = "none";
-    const today = new Date();
-    editData.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    // Data default = primo giorno del mese selezionato
+    editData.value = `${currentYear}-${String(meseIndex + 1).padStart(2, "0")}-01`;
     editStato.value = "preventivata";
     editModal.classList.add("active");
     editDesc.focus();
