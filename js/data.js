@@ -576,53 +576,57 @@ function applicaRicorrenti(year) {
 
 async function syncSpeseSupabase(year, mesi) {
   try {
+    // Cancella TUTTE le spese dell'anno su Supabase
+    await fetch(`${SUPABASE_URL}/rest/v1/spese?data=gte.${year}-01-01&data=lte.${year}-12-31`, {
+      method: "DELETE",
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
+    });
+    // Reinserisce quelle correnti
     for (let m = 0; m < 12; m++) {
       for (const s of (mesi[m] || [])) {
-        try { await sb("DELETE", "spese", { params: { id: `eq.${s.id}` } }); } catch (_) {}
+        const body = {
+          id: s.id, data: s.data, descrizione: s.descrizione,
+          importo: s.importo, stato: s.stato || "preventivata"
+        };
+        if (s.ricId) body.ric_id = s.ricId;
+        try { await sb("POST", "spese", { body }); } catch (_) {}
       }
     }
-  } catch (e) {}
-
-  for (let m = 0; m < 12; m++) {
-    for (const s of (mesi[m] || [])) {
-      const body = {
-        id: s.id, data: s.data, descrizione: s.descrizione,
-        importo: s.importo, stato: s.stato || "preventivata"
-      };
-      if (s.ricId) body.ric_id = s.ricId;
-      try { await sb("POST", "spese", { body }); } catch (_) {}
-    }
+  } catch (e) {
+    console.warn("Sync spese fallito:", e.message);
   }
 }
 
 async function syncEntrateSupabase(year, mesi) {
   try {
+    // Cancella TUTTE le entrate dell'anno su Supabase
+    await fetch(`${SUPABASE_URL}/rest/v1/entrate?data=gte.${year}-01-01&data=lte.${year}-12-31`, {
+      method: "DELETE",
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
+    });
+    // Reinserisce quelle correnti
     for (let m = 0; m < 12; m++) {
       for (const e of (mesi[m] || [])) {
-        try { await sb("DELETE", "entrate", { params: { id: `eq.${e.id}` } }); } catch (_) {}
+        const body = {
+          id: e.id, data: e.data, descrizione: e.descrizione, importo: e.importo
+        };
+        if (e.ricId) body.ric_id = e.ricId;
+        try { await sb("POST", "entrate", { body }); } catch (_) {}
       }
     }
-  } catch (e) {}
-
-  for (let m = 0; m < 12; m++) {
-    for (const e of (mesi[m] || [])) {
-      const body = {
-        id: e.id, data: e.data, descrizione: e.descrizione, importo: e.importo
-      };
-      if (e.ricId) body.ric_id = e.ricId;
-      try { await sb("POST", "entrate", { body }); } catch (_) {}
-    }
+  } catch (e) {
+    console.warn("Sync entrate fallito:", e.message);
   }
 }
 
 async function syncCategorieSupabase(cat) {
   try {
-    // Cancella tutto
-    const all = [...(cat.entrate || []), ...(cat.uscite || [])];
-    for (const c of all) {
-      try { await sb("DELETE", "categorie", { params: { id: `eq.${c.id}` } }); } catch (_) {}
-    }
-    // Reinserisce con campo tipo
+    // Cancella TUTTE le categorie su Supabase (id non nullo)
+    await fetch(`${SUPABASE_URL}/rest/v1/categorie?id=not.is.null`, {
+      method: "DELETE",
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
+    });
+    // Reinserisce quelle correnti con campo tipo
     for (const c of (cat.entrate || [])) {
       await sb("POST", "categorie", { body: { id: c.id, tipo: "entrate", descrizione: c.descrizione } });
     }
@@ -636,12 +640,12 @@ async function syncCategorieSupabase(cat) {
 
 async function syncRicorrentiSupabase(ric) {
   try {
-    // Cancella tutto
-    const all = [...(ric.entrate || []), ...(ric.uscite || [])];
-    for (const r of all) {
-      try { await sb("DELETE", "ricorrenti", { params: { id: `eq.${r.id}` } }); } catch (_) {}
-    }
-    // Reinserisce con campo tipo e snake_case
+    // Cancella TUTTI i ricorrenti su Supabase
+    await fetch(`${SUPABASE_URL}/rest/v1/ricorrenti?id=not.is.null`, {
+      method: "DELETE",
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
+    });
+    // Reinserisce quelli correnti
     for (const r of (ric.entrate || [])) {
       await sb("POST", "ricorrenti", {
         body: { id: r.id, tipo: "entrate", descrizione: r.descrizione, importo: r.importo, data_inizio: r.dataInizio, data_fine: r.dataFine }
