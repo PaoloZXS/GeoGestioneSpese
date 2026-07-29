@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login · Gestione Spese</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+    />
+    <link rel="stylesheet" href="css/variables.css" />
+    <link rel="stylesheet" href="css/global.css" />
+    <link rel="stylesheet" href="css/sidebar.css" />
+    <style>
+      .login-wrapper {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--color-bg-cream);
+        height: 100vh;
+      }
+
+      .login-card {
+        background: white;
+        border-radius: 24px;
+        padding: 48px 40px 40px 40px;
+        width: 400px;
+        max-width: 90vw;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
+        text-align: center;
+      }
+
+      .login-card .login-icon {
+        font-size: 52px;
+        color: var(--blue);
+        margin-bottom: 12px;
+      }
+
+      .login-card h1 {
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 4px;
+      }
+
+      .login-card .login-sub {
+        font-size: 14px;
+        color: var(--text-muted);
+        margin-bottom: 32px;
+      }
+
+      .login-card .field-group {
+        text-align: left;
+        margin-bottom: 20px;
+      }
+
+      .login-card .field-group label {
+        display: block;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        margin-bottom: 6px;
+      }
+
+      .login-card .field-group .input-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+      }
+
+      .login-card .field-group input {
+        width: 100%;
+        padding: 12px 16px;
+        border: 1.5px solid var(--input-border);
+        border-radius: 12px;
+        font-size: 15px;
+        background: var(--input-bg);
+        color: var(--text-primary);
+        outline: none;
+        transition: 0.15s;
+      }
+
+      .login-card .field-group input:focus {
+        border-color: var(--input-focus-border);
+        box-shadow: 0 0 0 3px var(--input-focus-shadow);
+      }
+
+      .login-card .field-group input.pw-input {
+        padding-right: 48px;
+      }
+
+      .login-card .toggle-pw {
+        position: absolute;
+        right: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: var(--text-muted);
+        font-size: 20px;
+        padding: 4px;
+        transition: 0.15s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .login-card .toggle-pw:hover {
+        color: var(--text-primary);
+      }
+
+      .login-card .login-btn {
+        width: 100%;
+        padding: 14px;
+        background: var(--blue);
+        color: white;
+        border: none;
+        border-radius: 14px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: 0.15s;
+        margin-top: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+      }
+
+      .login-card .login-btn:hover {
+        background: var(--blue-hover);
+        transform: translateY(-1px);
+      }
+
+      .login-card .login-btn:active {
+        transform: translateY(0);
+      }
+
+      .login-card .login-error {
+        color: var(--red);
+        font-size: 13px;
+        font-weight: 500;
+        margin-top: 16px;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+      }
+
+      .login-card .login-error.visible {
+        display: flex;
+      }
+
+      /* Nascondi sidebar su login — usiamo solo il logo */
+      .sidebar nav {
+        display: none;
+      }
+      .sidebar .bottom {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- SIDEBAR (solo logo) -->
+    <aside class="sidebar">
+      <div class="logo">
+        <i class="fas fa-coins"></i>
+        <span>spese</span>
+      </div>
+      <nav></nav>
+      <div class="bottom"></div>
+    </aside>
+
+    <!-- MAIN -->
+    <div class="login-wrapper">
+      <div class="login-card">
+        <div class="login-icon">
+          <i class="fas fa-coins"></i>
+        </div>
+        <h1>Gestione Spese</h1>
+        <p class="login-sub">Accedi per gestire le tue finanze</p>
+
+        <div class="field-group">
+          <label for="loginUser"><i class="fas fa-user"></i> Utente</label>
+          <input
+            type="text"
+            id="loginUser"
+            value="Giorsetti"
+            readonly
+            tabindex="-1"
+            style="
+              background: #f1f5f9;
+              color: var(--text-primary);
+              cursor: default;
+            "
+          />
+        </div>
+
+        <div class="field-group">
+          <label for="loginPw"><i class="fas fa-lock"></i> Password</label>
+          <div class="input-wrapper">
+            <input
+              type="password"
+              id="loginPw"
+              class="pw-input"
+              placeholder="Inserisci la password"
+              autocomplete="off"
+              autofocus
+            />
+            <button class="toggle-pw" id="togglePw" type="button" title="Mostra/Nascondi password">
+              <i class="fas fa-eye"></i>
+            </button>
+          </div>
+        </div>
+
+        <button class="login-btn" id="loginBtn">
+          <i class="fas fa-arrow-right-to-bracket"></i> Accedi
+        </button>
+
+        <div class="login-error" id="loginError">
+          <i class="fas fa-exclamation-circle"></i>
+          <span>Password errata. Riprova.</span>
+        </div>
+      </div>
+    </div>
+
+    <script src="js/login.js"></script>
+  </body>
+</html>

@@ -41,6 +41,7 @@
     </style>
   </head>
   <body>
+    <script>if(sessionStorage.getItem("auth")!=="true"){window.location.replace("login.html")}</script>
     <!-- SIDEBAR -->
     <aside class="sidebar">
       <div class="logo">
@@ -71,7 +72,7 @@
           ><i class="fas fa-cog"></i> Impostazioni</a>
       </nav>
       <div class="bottom">
-        <a href="#" onclick="window.open('', '_self').close()"
+        <a href="#" onclick="sessionStorage.clear();window.location.replace('login.html')"
           ><i class="fas fa-sign-out-alt"></i> Esci</a
         >
       </div>
