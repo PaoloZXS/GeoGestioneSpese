@@ -1,0 +1,127 @@
+/* =============================================
+   NOTIFICHE PERSONALIZZATE (alert / confirm)
+   ============================================= */
+.notifica-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: var(--notifica-overlay);
+  backdrop-filter: blur(5px);
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+.notifica-overlay.active {
+  display: flex;
+}
+
+.notifica-box {
+  background: white;
+  max-width: 440px;
+  width: 90%;
+  padding: 36px 40px 32px 40px;
+  border-radius: 28px;
+  box-shadow: var(--notifica-shadow);
+  text-align: center;
+  animation: notificaFadeIn 0.25s ease-out;
+}
+
+@keyframes notificaFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.notifica-box .notifica-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+  display: block;
+}
+.notifica-box .notifica-icon.warning {
+  color: #f59e0b;
+}
+.notifica-box .notifica-icon.question {
+  color: var(--blue);
+}
+.notifica-box .notifica-icon.success {
+  color: var(--green);
+}
+.notifica-box .notifica-icon.error {
+  color: var(--red);
+}
+
+.notifica-box .notifica-msg {
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+
+.notifica-box .notifica-btns {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.notifica-box .notifica-btns button {
+  padding: 10px 28px;
+  border-radius: 30px;
+  border: none;
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  transition: 0.2s;
+  min-width: 100px;
+}
+.notifica-box .notifica-btns button:hover {
+  transform: translateY(-1px);
+}
+.notifica-box .notifica-btns button:active {
+  transform: translateY(0);
+}
+
+.notifica-box .notifica-btns .btn-ok {
+  background: var(--blue);
+  color: white;
+}
+.notifica-box .notifica-btns .btn-ok:hover {
+  background: var(--blue-hover);
+  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.3);
+}
+
+.notifica-box .notifica-btns .btn-yes {
+  background: var(--red);
+  color: white;
+}
+.notifica-box .notifica-btns .btn-yes:hover {
+  background: var(--red-hover);
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.3);
+}
+
+.notifica-box .notifica-btns .btn-no {
+  background: #e9edf2;
+  color: var(--text-dark);
+}
+.notifica-box .notifica-btns .btn-no:hover {
+  background: #d1d9e6;
+}
+
+@media (max-width: 500px) {
+  .notifica-box {
+    padding: 28px 24px 24px 24px;
+  }
+  .notifica-box .notifica-msg {
+    font-size: 15px;
+  }
+  .notifica-box .notifica-btns button {
+    font-size: 14px;
+    padding: 8px 20px;
+    min-width: 80px;
+  }
+}

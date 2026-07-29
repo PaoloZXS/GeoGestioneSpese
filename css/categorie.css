@@ -1,0 +1,241 @@
+/* =============================================
+   CATEGORIE — Styles
+   ============================================= */
+
+.categorie-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  min-height: 0;
+  flex: 1;
+}
+
+.categorie-column {
+  border: 2px solid #e2e8f0;
+  border-radius: var(--radius-lg);
+  padding: 16px 16px 14px 16px;
+  height: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 300px;
+}
+.categorie-column.entrate {
+  background: var(--cat-entrate-bg);
+  border-color: var(--cat-entrate-border);
+}
+.categorie-column.uscite {
+  background: var(--cat-uscite-bg);
+  border-color: var(--cat-uscite-border);
+}
+
+.categorie-column h4 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.categorie-column h4 i {
+  font-size: 18px;
+}
+
+.categorie-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 4px;
+  margin-bottom: 0;
+}
+.categorie-list::-webkit-scrollbar {
+  width: 4px;
+}
+.categorie-list::-webkit-scrollbar-track {
+  background: #eef2f6;
+  border-radius: 8px;
+}
+.categorie-list::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 8px;
+}
+.categorie-column.entrate .categorie-list::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 8px;
+}
+.categorie-column.uscite .categorie-list::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 8px;
+}
+
+.categorie-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  transition:
+    background 0.12s,
+    border-color 0.12s;
+  cursor: pointer;
+  min-height: 34px;
+  flex-shrink: 0;
+}
+.categorie-column.entrate .categorie-item {
+  background: var(--cat-entrate-item);
+}
+.categorie-column.entrate .categorie-item:nth-child(odd) {
+  background: var(--cat-entrate-item-alt);
+}
+.categorie-column.entrate .categorie-item:hover {
+  background: var(--cat-entrate-item-hover);
+  border-color: var(--green-text);
+  box-shadow: 0 1px 4px rgba(22, 163, 74, 0.2);
+}
+.categorie-column.uscite .categorie-item {
+  background: var(--cat-uscite-item);
+}
+.categorie-column.uscite .categorie-item:nth-child(odd) {
+  background: var(--cat-uscite-item-alt);
+}
+.categorie-column.uscite .categorie-item:hover {
+  background: var(--cat-uscite-item-hover);
+  border-color: var(--red-text);
+  box-shadow: 0 1px 4px rgba(220, 38, 38, 0.2);
+}
+
+.categorie-item .cat-desc {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  padding: 2px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.categorie-item .cat-delete-btn {
+  background: transparent;
+  border: none;
+  font-size: 13px;
+  color: var(--red-text);
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 8px;
+  transition: 0.1s;
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+.categorie-item:hover .cat-delete-btn {
+  opacity: 1;
+}
+.categorie-item .cat-delete-btn:hover {
+  background: rgba(239, 68, 68, 0.15);
+  transform: scale(1.1);
+}
+
+/* Editing state */
+.categorie-item.editing {
+  padding: 5px 8px;
+  background: white;
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px var(--input-focus-shadow);
+}
+.categorie-item.editing .cat-desc {
+  display: none;
+}
+.categorie-item .cat-edit-input {
+  display: none;
+  flex: 1;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1.5px solid var(--blue);
+  font-size: 14px;
+  font-weight: 500;
+  outline: none;
+  background: white;
+}
+.categorie-item.editing .cat-edit-input {
+  display: block;
+}
+
+/* Add form */
+.categorie-add-form {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-top: auto;
+  padding-top: 10px;
+}
+.categorie-add-form input {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--input-border);
+  font-size: 13px;
+  background: rgba(255, 255, 255, 0.8);
+  transition: border-color 0.2s;
+  min-width: 0;
+}
+.categorie-add-form input:focus {
+  outline: none;
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px var(--input-focus-shadow);
+  background: white;
+}
+.categorie-add-form .btn-add-cat {
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: 0.15s;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.categorie-add-form .btn-add-cat.entrate {
+  background: var(--green);
+}
+.categorie-add-form .btn-add-cat.entrate:hover {
+  background: var(--green-hover);
+  transform: translateY(-1px);
+}
+.categorie-add-form .btn-add-cat.uscite {
+  background: var(--red);
+}
+.categorie-add-form .btn-add-cat.uscite:hover {
+  background: var(--red-hover);
+  transform: translateY(-1px);
+}
+.categorie-add-form .btn-add-cat:active {
+  transform: translateY(0) !important;
+}
+
+.categorie-empty {
+  color: var(--text-muted);
+  text-align: center;
+  padding: 16px 0;
+  font-style: italic;
+  font-size: 13px;
+}
+
+@media (max-width: 640px) {
+  .categorie-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .categorie-column {
+    height: auto;
+    max-height: 320px;
+  }
+}

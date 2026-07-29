@@ -1,0 +1,542 @@
+/* =============================================
+   DASHBOARD — Planning Grid & Month Cards
+   ============================================= */
+
+/* Griglia: 3 righe, 4 colonne */
+.planning-grid {
+  display: grid;
+  grid-template-rows: repeat(3, 1fr);
+  gap: 14px;
+  flex: 1;
+  min-height: 0;
+}
+
+.row-months {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  min-height: 0;
+}
+
+/* ---- MONTH CARD ---- */
+.month-card {
+  background: var(--card-bg);
+  border-radius: var(--radius-xl);
+  border: 2px solid var(--card-border);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+  transition:
+    border-color 0.15s,
+    background 0.2s;
+}
+.month-card:hover {
+  border-color: var(--card-hover-border);
+}
+
+.month-card.current-month {
+  background: var(--card-current-bg);
+  border-color: var(--card-current-border);
+}
+.month-card.current-month .month-header {
+  background: var(--card-current-header);
+  border-bottom-color: var(--card-current-border);
+}
+.month-card.current-month .month-total {
+  background: transparent;
+  border-top-color: var(--card-current-border);
+}
+.month-card.current-month .expense-item {
+  background: transparent;
+}
+.month-card.current-month .expense-item:hover {
+  background: var(--expense-hover);
+}
+
+/* ---- MONTH HEADER ---- */
+.month-header {
+  background: var(--blue-light);
+  padding: 8px 14px;
+  border-bottom: 2px solid var(--blue-border);
+  flex-shrink: 0;
+  min-height: 42px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.month-header .month-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+.month-header .total-entrate {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--green-text);
+  background: var(--green-light);
+  padding: 2px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: 0.2s;
+  white-space: nowrap;
+  border: 1px solid var(--green-border);
+}
+.month-header .total-entrate:hover {
+  background: rgba(34, 197, 94, 0.25);
+  transform: scale(1.02);
+}
+.month-header .total-entrate.negative {
+  color: var(--red-text);
+  background: var(--red-light);
+  border-color: var(--red-border);
+}
+.month-header .total-entrate.negative:hover {
+  background: rgba(239, 68, 68, 0.2);
+}
+.month-header .total-entrate i {
+  margin-right: 4px;
+  font-size: 11px;
+}
+
+.month-header .add-expense-btn {
+  background: transparent;
+  border: none;
+  font-size: 18px;
+  color: var(--blue);
+  cursor: pointer;
+  padding: 0 4px;
+  border-radius: 50%;
+  transition: 0.15s;
+  margin-left: 6px;
+  line-height: 1;
+  vertical-align: middle;
+}
+.month-header .add-expense-btn:hover {
+  background: rgba(59, 130, 246, 0.15);
+  transform: scale(1.15);
+}
+
+/* ---- EXPENSE LIST ---- */
+.expense-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 6px 4px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-height: 0;
+}
+
+.expense-list::-webkit-scrollbar {
+  width: 4px;
+}
+.expense-list::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+}
+.expense-list::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 8px;
+}
+
+/* ---- EXPENSE ITEM (riga) ---- */
+.expense-item {
+  background: transparent;
+  border-radius: 8px;
+  padding: 4px 4px;
+  border: 1px solid var(--expense-border);
+  border-left-width: 4px;
+  display: grid;
+  grid-template-columns: 45px 1fr 65px 75px;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+  transition: 0.1s;
+  min-height: 28px;
+  flex-shrink: 0;
+  width: 100%;
+}
+.expense-item:hover {
+  background: var(--expense-hover);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.expense-item.status-eseguita {
+  border-left-color: var(--green);
+}
+.expense-item.status-preventivata {
+  border-left-color: var(--blue);
+}
+.expense-item.status-scaduta {
+  border-left-color: var(--red);
+}
+
+.expense-item .data-text {
+  font-size: 10px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  white-space: nowrap;
+  text-align: left;
+}
+.expense-item .desc {
+  font-weight: 500;
+  font-size: 12px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+  transition: color 0.2s;
+}
+.expense-item .importo {
+  font-weight: 600;
+  font-size: 11px;
+  color: var(--text-primary);
+  background: transparent;
+  padding: 0 4px;
+  white-space: nowrap;
+  text-align: right;
+  justify-self: end;
+  width: 100%;
+}
+.expense-item .badge-stato {
+  font-size: 7px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.2px;
+  background: var(--badge-bg);
+  padding: 1px 5px;
+  border-radius: 20px;
+  color: #334155;
+  white-space: nowrap;
+  text-align: right;
+  justify-self: end;
+}
+.expense-item .badge-stato.eseguita {
+  background: var(--badge-eseguita-bg);
+  color: var(--green-dark);
+}
+.expense-item .badge-stato.preventivata {
+  background: var(--badge-preventivata-bg);
+  color: #1e40af;
+}
+.expense-item .badge-stato.scaduta {
+  background: var(--badge-scaduta-bg);
+  color: var(--red-dark);
+}
+
+/* Icone modifica / elimina */
+/* delete-btn rimosso - si elimina dal modale */
+
+/* Spese scadute - tutto rosso */
+.expense-item.status-scaduta .data-text,
+.expense-item.status-scaduta .desc,
+.expense-item.status-scaduta .importo {
+  color: var(--red-text);
+}
+
+/* ---- MONTH TOTAL ---- */
+.month-total {
+  padding: 4px 14px 6px 14px;
+  border-top: 2px solid var(--blue-border);
+  margin-top: auto;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text-primary);
+  display: flex;
+  justify-content: space-between;
+  background: transparent;
+  border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+  flex-shrink: 0;
+  min-height: 32px;
+  align-items: center;
+}
+.month-total span:last-child {
+  background: transparent;
+  padding: 0 4px;
+  color: var(--text-dark);
+  min-width: 50px;
+  text-align: right;
+}
+
+.empty-month {
+  color: var(--text-muted);
+  font-size: 11px;
+  text-align: center;
+  padding: 10px 0;
+  font-style: italic;
+}
+
+/* Drag & drop */
+.expense-item.dragging {
+  opacity: 0.3;
+  transform: scale(0.95);
+}
+.expense-item.drag-over {
+  border: 2px dashed var(--blue);
+  background: rgba(59, 130, 246, 0.1);
+}
+
+/* ---- MODALE ENTRATE ---- */
+.entrate-list {
+  flex: 1;
+  overflow-y: auto;
+  margin-bottom: 20px;
+  max-height: 420px;
+  min-height: 150px;
+  padding-right: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.entrate-list .entrata-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 18px;
+  padding: 16px 20px;
+  background: #f9fafc;
+  border-radius: var(--radius-lg);
+  border: 1px solid #eef2f6;
+  font-size: 16px;
+  transition:
+    background 0.15s,
+    box-shadow 0.15s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+.entrate-list .entrata-item:hover {
+  background: #f0f4fa;
+  box-shadow: var(--shadow-md);
+  border-color: #d1d9e6;
+}
+.entrate-list .entrata-item .entrata-data {
+  font-size: 14px;
+  color: var(--sidebar-bottom-text);
+  font-weight: 500;
+  background: #eef2f6;
+  padding: 4px 14px;
+  border-radius: 30px;
+  white-space: nowrap;
+}
+.entrate-list .entrata-item .entrata-desc {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 16px;
+}
+.entrate-list .entrata-item .entrata-importo {
+  font-weight: 700;
+  color: var(--green-text);
+  text-align: right;
+  font-size: 19px;
+  background: rgba(34, 197, 94, 0.08);
+  padding: 6px 18px;
+  border-radius: 30px;
+  white-space: nowrap;
+}
+.entrate-list .empty-entrate {
+  color: var(--text-muted);
+  text-align: center;
+  padding: 50px 0;
+  font-style: italic;
+  font-size: 16px;
+  background: #f9fafc;
+  border-radius: var(--radius-lg);
+  border: 1px dashed #d1d9e6;
+}
+
+/* ---- FORM ENTRATE ---- */
+.add-entrata-form {
+  display: grid;
+  grid-template-columns: 180px 1fr 150px auto;
+  gap: 18px;
+  align-items: end;
+  padding-top: 4px;
+}
+.add-entrata-form .field-group label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  display: block;
+  margin-bottom: 6px;
+  letter-spacing: 0.2px;
+}
+.add-entrata-form .field-group input,
+.add-entrata-form .field-group select {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: var(--radius-lg);
+  border: 1.5px solid var(--input-border);
+  font-size: 15px;
+  background: var(--input-bg);
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+.add-entrata-form .field-group input:focus,
+.add-entrata-form .field-group select:focus {
+  outline: none;
+  border-color: var(--green);
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.12);
+  background: white;
+}
+.add-entrata-form .btn-add {
+  background: var(--green);
+  color: white;
+  border: none;
+  padding: 12px 28px;
+  border-radius: var(--radius-lg);
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  transition: 0.2s;
+  height: 48px;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.add-entrata-form .btn-add:hover {
+  background: var(--green-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(34, 197, 94, 0.25);
+}
+.add-entrata-form .btn-add:active {
+  transform: translateY(0);
+}
+.add-entrata-form .btn-add i {
+  font-size: 14px;
+}
+
+/* ---- RESPONSIVE DASHBOARD ---- */
+@media (max-width: 1200px) {
+  .row-months {
+    gap: 10px;
+  }
+  .planning-grid {
+    gap: 10px;
+  }
+  .page-wrapper {
+    padding: 12px 14px 14px 14px;
+  }
+  .expense-item {
+    grid-template-columns: 40px 1fr 55px 65px;
+    gap: 2px;
+  }
+  .expense-item .data-text {
+    font-size: 9px;
+  }
+  .expense-item .desc {
+    font-size: 11px;
+  }
+  .expense-item .importo {
+    font-size: 10px;
+  }
+  .expense-item .badge-stato {
+    font-size: 6px;
+  }
+  .month-header .month-title {
+    font-size: 13px;
+  }
+  .month-header .total-entrate {
+    font-size: 11px;
+    padding: 1px 10px;
+  }
+  .entrate-list .entrata-item {
+    grid-template-columns: auto 1fr auto;
+    gap: 14px;
+    font-size: 15px;
+    padding: 14px 16px;
+  }
+  .entrate-list .entrata-item .entrata-importo {
+    font-size: 17px;
+    padding: 5px 14px;
+  }
+  .add-entrata-form {
+    grid-template-columns: 140px 1fr 120px auto;
+    gap: 14px;
+  }
+}
+@media (max-width: 900px) {
+  .row-months {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .planning-grid {
+    grid-template-rows: repeat(4, 1fr);
+  }
+}
+@media (max-width: 700px) {
+  .row-months {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .planning-grid {
+    grid-template-rows: repeat(6, 1fr);
+  }
+  .entrate-list .entrata-item {
+    grid-template-columns: auto 1fr auto;
+    gap: 10px;
+    font-size: 14px;
+    padding: 12px 14px;
+  }
+  .entrate-list .entrata-item .entrata-importo {
+    font-size: 15px;
+    padding: 4px 12px;
+  }
+  .add-entrata-form {
+    grid-template-columns: 120px 1fr 100px auto;
+    gap: 10px;
+  }
+  .add-entrata-form .field-group input,
+  .add-entrata-form .field-group select {
+    font-size: 14px;
+    padding: 10px 14px;
+  }
+  .add-entrata-form .btn-add {
+    font-size: 14px;
+    padding: 10px 18px;
+    height: 44px;
+  }
+}
+@media (max-width: 500px) {
+  .row-months {
+    grid-template-columns: 1fr;
+  }
+  .planning-grid {
+    grid-template-rows: repeat(12, 1fr);
+  }
+  .entrate-list .entrata-item {
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    padding: 12px 12px;
+    font-size: 13px;
+    border-radius: var(--radius-md);
+  }
+  .entrate-list .entrata-item .entrata-data {
+    grid-column: span 2;
+    justify-self: start;
+    font-size: 12px;
+    padding: 3px 10px;
+  }
+  .entrate-list .entrata-item .entrata-importo {
+    text-align: right;
+    font-size: 14px;
+    padding: 4px 10px;
+  }
+  .add-entrata-form {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .add-entrata-form .field-group input,
+  .add-entrata-form .field-group select {
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+  .add-entrata-form .btn-add {
+    grid-column: span 2;
+    height: 42px;
+    font-size: 14px;
+  }
+}

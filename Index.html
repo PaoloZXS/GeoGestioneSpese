@@ -1,0 +1,251 @@
+﻿<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Planning Annuale · Gestione Spese</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+    />
+    <link rel="stylesheet" href="css/variables.css" />
+    <link rel="stylesheet" href="css/global.css" />
+    <link rel="stylesheet" href="css/sidebar.css" />
+    <link rel="stylesheet" href="css/modali.css" />
+    <link rel="stylesheet" href="css/notifications.css" />
+    <link rel="stylesheet" href="css/dashboard.css" />
+  </head>
+  <body>
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="logo">
+        <i class="fas fa-coins"></i>
+        <span>spese</span>
+      </div>
+      <nav>
+        <a class="active" onclick="location.href = 'index.html'"
+          ><i class="fas fa-home"></i> Planning</a
+        >
+        <a onclick="location.href = 'programmazione.html'"
+          ><i class="fas fa-redo"></i> Ricorrenti</a
+        >
+        <a onclick="location.href = 'statistiche.html'"
+          ><i class="fas fa-chart-pie"></i> Report</a
+        >
+        <a onclick="location.href = 'categorie.html'"
+          ><i class="fas fa-tag"></i> Categorie</a
+        >
+        <a onclick="location.href = 'impostazioni.html'"
+          ><i class="fas fa-cog"></i> Impostazioni</a
+        >
+      </nav>
+      <div class="bottom">
+        <a href="#" onclick="window.open('', '_self').close()"
+          ><i class="fas fa-sign-out-alt"></i> Esci</a
+        >
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <div class="main">
+      <div class="top-bar">
+        <h2><i class="fas fa-calendar-check"></i> Planning annuale</h2>
+        <div class="riepilogo-annuale" id="riepilogoAnnuale">
+          <div class="riep-wrapper">
+            <span class="riep-label">Tot. Entrate</span>
+            <span class="riep-item entrate" id="riepEntrate"
+              ><i class="fas fa-arrow-up"></i> € 0.00</span
+            >
+          </div>
+          <div class="riep-wrapper">
+            <span class="riep-label">Tot. Uscite</span>
+            <span class="riep-item uscite" id="riepUscite"
+              ><i class="fas fa-arrow-down"></i> € 0.00</span
+            >
+          </div>
+          <div class="riep-wrapper">
+            <span class="riep-label">Saldo</span>
+            <span class="riep-item saldo" id="riepSaldo"
+              ><i class="fas fa-check-circle"></i> € 0.00</span
+            >
+          </div>
+        </div>
+        <div class="anno-controls">
+          <button id="prevYearBtn"><i class="fas fa-chevron-left"></i></button>
+          <span class="anno-label" id="annoLabel">2026</span>
+          <button id="nextYearBtn"><i class="fas fa-chevron-right"></i></button>
+        </div>
+      </div>
+      <div class="page-wrapper">
+        <div class="planning-grid" id="planningGrid"></div>
+      </div>
+    </div>
+
+    <!-- MODALE ENTRATE -->
+    <div class="modal-overlay" id="entrateModal">
+      <div class="modal-box">
+        <h3>
+          <span
+            ><i class="fas fa-coins" style="color: #16a34a"></i> Entrate -
+            <span id="entrateModalTitle">Gennaio 2026</span></span
+          >
+          <button class="close-modal-btn" id="closeEntrateModal">
+            &times;
+          </button>
+        </h3>
+        <div class="entrate-list" id="entrateList"></div>
+        <hr class="separator" />
+        <div class="add-entrata-form">
+          <div class="field-group">
+            <label>Data</label>
+            <input type="date" id="newEntrataData" />
+          </div>
+          <div class="field-group">
+            <label>Descrizione</label>
+            <select id="newEntrataDesc">
+              <option value="">Seleziona una categoria...</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label>Importo (€)</label>
+            <input
+              type="number"
+              id="newEntrataImporto"
+              placeholder="0.00"
+              step="0.01"
+              min="0"
+            />
+          </div>
+          <button class="btn-add" id="addEntrataBtn">
+            <i class="fas fa-plus"></i> Aggiungi
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODALE MODIFICA SPESA -->
+    <div class="modal-overlay" id="editModal">
+      <div class="modal-box modifica">
+        <h3>
+          <i class="fas fa-pen"></i>
+          <span id="editModalTitle">Modifica spesa</span>
+        </h3>
+        <label>Descrizione</label>
+        <select id="editDesc">
+          <option value="">Seleziona una categoria...</option>
+        </select>
+
+        <!-- Campo importo per NUOVA spesa (nascosto in modifica) -->
+        <div id="editNewImportoSection">
+          <label>Importo (€)</label>
+          <input type="number" id="editImporto" value="" step="0.01" min="0" />
+        </div>
+
+        <!-- Sezione importi per spesa ESISTENTE (nascosto in nuova) -->
+        <div id="editImportiSection">
+          <label>Importo attuale</label>
+          <div class="importo-attuale-display" id="editImportoAttuale">
+            € 0.00
+          </div>
+
+          <label>Aggiungi importo (€)</label>
+          <input
+            type="number"
+            id="editAddImporto"
+            value=""
+            step="0.01"
+            min="0"
+            placeholder="0.00"
+          />
+
+          <label>Totale aggiornato</label>
+          <div class="importo-totale-display" id="editImportoTotale">
+            € 0.00
+          </div>
+        </div>
+
+        <label>Data</label>
+        <input type="date" id="editData" value="" />
+        <div id="editStatoSection">
+          <label>Stato</label>
+          <select id="editStato">
+            <option value="eseguita">Eseguita</option>
+            <option value="preventivata">Preventivata</option>
+            <option value="scaduta">Scaduta</option>
+          </select>
+        </div>
+
+        <!-- Sezione gestione ricorrente (solo per preventivate con ricId) -->
+        <div id="editRicorrenteSection" style="display: none">
+          <hr class="separator" style="margin: 10px 0" />
+          <div class="ricorrente-actions">
+            <button class="ric-btn ric-this" id="ricDeleteThis">
+              <i class="fas fa-trash"></i> Elimina questa
+            </button>
+            <button class="ric-btn ric-range" id="ricDeleteRangeBtn">
+              <i class="fas fa-calendar-minus"></i> Elimina da... a...
+            </button>
+            <button class="ric-btn ric-all" id="ricDeleteAll">
+              <i class="fas fa-trash-alt"></i> Elimina tutte
+            </button>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="delete-modal-btn" id="modalDeleteBtn">
+            <i class="fas fa-trash"></i> Cancella
+          </button>
+          <button class="cancel-btn" id="modalCancelBtn">Annulla</button>
+          <button class="save-btn" id="modalSaveBtn">
+            <i class="fas fa-save"></i> Salva
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MINI-MODALE SELEZIONE RANGE RICORRENTI -->
+    <div class="modal-overlay" id="ricRangeModal">
+      <div class="modal-box ric-range-box">
+        <h3>
+          <span
+            ><i class="fas fa-calendar-minus" style="color: #3b82f6"></i>
+            Elimina da... a...</span
+          >
+          <button class="close-modal-btn" id="ricRangeClose">&times;</button>
+        </h3>
+        <div class="ric-range-fields">
+          <div class="field-group">
+            <label>Da (mese/anno)</label>
+            <input type="month" id="ricRangeDa" />
+          </div>
+          <div class="field-group">
+            <label>A (mese/anno)</label>
+            <input type="month" id="ricRangeA" />
+          </div>
+        </div>
+        <div class="ric-range-btns">
+          <button class="cancel-btn" id="ricRangeCancel">Annulla</button>
+          <button class="ric-range-confirm" id="ricRangeConfirm">
+            <i class="fas fa-check"></i> Conferma
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- NOTIFICA PERSONALIZZATA -->
+    <div class="notifica-overlay" id="notificaModal">
+      <div class="notifica-box">
+        <span class="notifica-icon" id="notificaIcon"
+          ><i class="fas fa-exclamation-circle"></i
+        ></span>
+        <div class="notifica-msg" id="notificaMsg"></div>
+        <div class="notifica-btns" id="notificaBtns"></div>
+      </div>
+    </div>
+
+    <script src="js/utils.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/notifications.js"></script>
+
+    <script src="js/dashboard.js"></script>
+  </body>
+</html>

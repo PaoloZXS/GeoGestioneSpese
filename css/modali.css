@@ -1,0 +1,304 @@
+/* =============================================
+   MODAL OVERLAY & BOX — Stili condivisi
+   ============================================= */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: var(--modal-overlay);
+  backdrop-filter: blur(4px);
+  justify-content: center;
+  align-items: center;
+  z-index: 999;
+}
+.modal-overlay.active {
+  display: flex;
+}
+
+.modal-box {
+  background: var(--modal-bg);
+  max-width: 800px;
+  width: 90%;
+  padding: 40px 48px 44px 48px;
+  border-radius: var(--modal-radius);
+  box-shadow: var(--modal-shadow);
+  max-height: 90vh;
+  min-height: 60vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-box h3 {
+  font-size: 26px;
+  font-weight: 700;
+  margin-bottom: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--text-primary);
+  letter-spacing: -0.3px;
+}
+.modal-box h3 i {
+  font-size: 28px;
+  margin-right: 10px;
+}
+.modal-box h3 .close-modal-btn {
+  background: none;
+  border: none;
+  font-size: 32px;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0 8px;
+  transition: 0.2s;
+  line-height: 1;
+}
+.modal-box h3 .close-modal-btn:hover {
+  color: var(--text-primary);
+  transform: rotate(90deg);
+}
+
+/* ---- MODALE MODIFICA (compatto) ---- */
+.modal-box.modifica {
+  max-width: 440px;
+  min-height: auto;
+  padding: 24px 26px;
+}
+.modal-box.modifica h3 {
+  justify-content: flex-start;
+  gap: 10px;
+}
+.modal-box.modifica label {
+  font-weight: 500;
+  font-size: 13px;
+  color: #334155;
+  display: block;
+  margin: 12px 0 4px;
+}
+.modal-box.modifica input,
+.modal-box.modifica select {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 16px;
+  border: 1px solid var(--input-border);
+  font-size: 14px;
+}
+
+/* ---- SEZIONE NUOVO IMPORTO (per nuove spese) ---- */
+#editNewImportoSection {
+  margin: 8px 0;
+}
+
+/* ---- SEZIONE AGGIUNTA IMPORTI (per spese esistenti) ---- */
+#editImportiSection {
+  margin: 8px 0;
+  padding: 12px 14px;
+  background: #f8fafc;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+}
+
+.importo-attuale-display {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  padding: 6px 0;
+  text-align: center;
+  background: white;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.importo-totale-display {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--blue);
+  padding: 6px 0;
+  text-align: center;
+  background: #eff6ff;
+  border-radius: 12px;
+  border: 1px solid #bfdbfe;
+}
+
+.modal-box.modifica #editAddImporto {
+  border-color: #93c5fd;
+  background: #fafcff;
+  font-weight: 600;
+  font-size: 16px;
+}
+.modal-box.modifica #editAddImporto:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px var(--input-focus-shadow);
+  background: white;
+}
+
+/* ---- SEZIONE RICORRENTE (modale modifica) ---- */
+#editRicorrenteSection {
+  margin: 4px 0;
+}
+.ricorrente-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ricorrente-actions .ric-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.1s;
+  width: 100%;
+  text-align: left;
+}
+.ricorrente-actions .ric-btn.ric-this {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #fbbf24;
+}
+.ricorrente-actions .ric-btn.ric-this:hover {
+  background: #fde68a;
+}
+.ricorrente-actions .ric-btn.ric-range {
+  background: #dbeafe;
+  color: #1e40af;
+  border-color: #93c5fd;
+}
+.ricorrente-actions .ric-btn.ric-range:hover {
+  background: #bfdbfe;
+}
+.ricorrente-actions .ric-btn.ric-all {
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #fca5a5;
+}
+.ricorrente-actions .ric-btn.ric-all:hover {
+  background: #fecaca;
+}
+
+/* ---- MINI MODALE RANGE ---- */
+.ric-range-box {
+  max-width: 400px !important;
+  min-height: auto !important;
+  padding: 28px 32px !important;
+}
+.ric-range-fields {
+  display: flex;
+  gap: 14px;
+  margin: 8px 0 16px 0;
+}
+.ric-range-fields .field-group {
+  flex: 1;
+}
+.ric-range-fields .field-group label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  display: block;
+  margin-bottom: 4px;
+}
+.ric-range-fields .field-group input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1.5px solid var(--input-border);
+  font-size: 14px;
+  background: var(--input-bg);
+}
+.ric-range-fields .field-group input:focus {
+  outline: none;
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px var(--input-focus-shadow);
+  background: white;
+}
+.ric-range-btns {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+.ric-range-btns button {
+  padding: 9px 22px;
+  border-radius: 30px;
+  border: none;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: 0.15s;
+}
+.ric-range-btns .cancel-btn {
+  background: #e9edf2;
+  color: var(--text-dark);
+}
+.ric-range-btns .cancel-btn:hover {
+  background: #d1d9e6;
+}
+.ric-range-confirm {
+  background: var(--green);
+  color: white;
+  border: none;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 9px 22px;
+  border-radius: 30px;
+  transition: 0.15s;
+}
+.ric-range-confirm:hover {
+  background: var(--green-hover);
+  transform: translateY(-1px);
+}
+
+.modal-box.modifica .btn-row {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+  justify-content: flex-end;
+}
+.modal-box.modifica .btn-row button {
+  padding: 8px 20px;
+  border-radius: 30px;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+}
+.modal-box.modifica .btn-row .save-btn {
+  background: var(--blue);
+  color: white;
+}
+.modal-box.modifica .btn-row .cancel-btn {
+  background: #e9edf2;
+  color: var(--text-dark);
+}
+.modal-box.modifica .btn-row .delete-modal-btn {
+  background: #fee2e2;
+  color: var(--red-dark);
+}
+
+/* ---- RESPONSIVE MODALI ---- */
+@media (max-width: 1200px) {
+  .modal-box {
+    padding: 28px 30px 32px 30px;
+    max-width: 680px;
+  }
+}
+@media (max-width: 700px) {
+  .modal-box {
+    padding: 24px 20px 28px 20px;
+    max-width: 95%;
+  }
+  .modal-box h3 {
+    font-size: 22px;
+  }
+}
+@media (max-width: 500px) {
+  .modal-box {
+    padding: 20px 16px 24px 16px;
+  }
+  .modal-box h3 {
+    font-size: 20px;
+    margin-bottom: 18px;
+  }
+}

@@ -1,0 +1,118 @@
+/* =============================================
+   SIDEBAR STYLES
+   ============================================= */
+.sidebar {
+  width: 95px;
+  background: var(--sidebar-bg);
+  color: var(--sidebar-text);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 0 12px 0;
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.06);
+  flex-shrink: 0;
+  height: 100vh;
+  overflow-y: auto;
+  z-index: 10;
+}
+
+.sidebar .logo {
+  font-size: 26px;
+  font-weight: 500;
+  letter-spacing: 1px;
+  margin-bottom: 32px;
+  color: var(--sidebar-logo);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.sidebar .logo i {
+  font-size: 32px;
+  margin-bottom: 4px;
+}
+.sidebar .logo span {
+  font-size: 11px;
+  color: var(--sidebar-text-muted);
+  letter-spacing: 2px;
+}
+
+.sidebar nav {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  padding: 0 8px;
+}
+
+.sidebar nav a {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 0;
+  border-radius: 14px;
+  color: var(--sidebar-text-muted);
+  text-decoration: none;
+  font-size: 12px;
+  transition: 0.15s;
+  gap: 4px;
+  font-weight: 500;
+  background: transparent;
+  cursor: pointer;
+}
+.sidebar nav a i {
+  font-size: 22px;
+  margin-bottom: 2px;
+}
+.sidebar nav a:hover {
+  background: var(--sidebar-hover);
+  color: #f1f5f9;
+}
+.sidebar nav a.active {
+  background: var(--sidebar-active);
+  color: white;
+  box-shadow: 0 4px 8px var(--sidebar-active-shadow);
+}
+
+.sidebar .bottom {
+  margin-top: auto;
+  padding-top: 20px;
+  border-top: 1px solid var(--sidebar-border);
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.sidebar .bottom a {
+  color: var(--sidebar-bottom-text);
+  text-decoration: none;
+  font-size: 11px;
+  padding: 8px 0;
+  width: 100%;
+  text-align: center;
+  transition: 0.1s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.sidebar .bottom a i {
+  font-size: 22px;
+}
+.sidebar .bottom a:hover {
+  color: var(--sidebar-text);
+}
+
+/* ---- RESPONSIVE SIDEBAR ---- */
+@media (max-width: 700px) {
+  .sidebar {
+    width: 72px;
+  }
+  .sidebar nav a {
+    font-size: 10px;
+    padding: 8px 0;
+  }
+}

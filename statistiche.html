@@ -1,0 +1,96 @@
+﻿<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Statistiche Â· Gestione Spese</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+    />
+    <link rel="stylesheet" href="css/variables.css" />
+    <link rel="stylesheet" href="css/global.css" />
+    <link rel="stylesheet" href="css/sidebar.css" />
+    <style>
+      .page-wrapper {
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+      }
+      .placeholder-icon {
+        font-size: 80px;
+        color: var(--text-muted);
+        margin-bottom: 20px;
+        opacity: 0.5;
+      }
+      .placeholder-title {
+        font-size: 28px;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 10px;
+      }
+      .placeholder-desc {
+        font-size: 16px;
+        color: var(--text-secondary);
+        max-width: 400px;
+        line-height: 1.6;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="logo">
+        <i class="fas fa-coins"></i>
+        <span>spese</span>
+      </div>
+      <nav>
+        <a  onclick="location.href = 'index.html'"
+          ><i class="fas fa-home"></i> Planning</a
+        >
+        <a
+          
+          onclick="location.href = 'programmazione.html'"
+          ><i class="fas fa-redo"></i> Ricorrenti</a
+        >
+        <a
+          
+          class="active"
+          onclick="location.href = 'statistiche.html'"
+          ><i class="fas fa-chart-pie"></i> Report</a
+        >
+        <a  onclick="location.href = 'categorie.html'"
+          ><i class="fas fa-tag"></i> Categorie</a
+        >
+        <a
+          
+          onclick="location.href = 'impostazioni.html'"
+          ><i class="fas fa-cog"></i> Impostazioni</a>
+      </nav>
+      <div class="bottom">
+        <a href="#" onclick="window.open('', '_self').close()"
+          ><i class="fas fa-sign-out-alt"></i> Esci</a
+        >
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <div class="main">
+      <div class="top-bar">
+        <h2><i class="fas fa-chart-pie"></i> Statistiche</h2>
+        <div></div>
+      </div>
+      <div class="page-wrapper">
+        <div class="placeholder-icon"><i class="fas fa-chart-bar"></i></div>
+        <div class="placeholder-title">Statistiche</div>
+        <div class="placeholder-desc">
+          Questa pagina Ã¨ in costruzione. Presto potrai vedere grafici e
+          statistiche sulle tue entrate e uscite annuali.
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
