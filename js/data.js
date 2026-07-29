@@ -530,10 +530,12 @@ function applicaRicorrenti(year) {
             (s) => s.descrizione === r.descrizione && s.data === dataStr
           );
           if (esistente) {
-            // Aggiorna ricId se mancante (dati vecchi)
-            if (!esistente.ricId) {
-              updateSpesa(year, m, esistente.id, { ricId: r.id });
+            // Aggiorna importo e ricId al valore corrente del ricorrente
+            const updates = { ricId: r.id };
+            if (esistente.importo !== r.importo) {
+              updates.importo = r.importo;
             }
+            updateSpesa(year, m, esistente.id, updates);
           } else {
             addSpesa(year, m, {
               id: generaId("spesa"),
@@ -551,10 +553,12 @@ function applicaRicorrenti(year) {
             (e) => e.descrizione === r.descrizione && e.data === dataStr
           );
           if (esistente) {
-            if (!esistente.ricId) {
-              esistente.ricId = r.id;
-              saveEntrate(year, allEntrate);
+            // Aggiorna importo e ricId al valore corrente del ricorrente
+            esistente.ricId = r.id;
+            if (esistente.importo !== r.importo) {
+              esistente.importo = r.importo;
             }
+            saveEntrate(year, allEntrate);
           } else {
             addEntrata(year, m, {
               id: generaId("entrata"),
