@@ -77,7 +77,12 @@ async function caricaDaSupabase() {
       const y = s.data.substring(0, 4);
       const m = parseInt(s.data.substring(5, 7)) - 1;
       if (!_speseCache[y]) _speseCache[y] = Array.from({ length: 12 }, () => []);
-      _speseCache[y][m].push(s);
+      // Converti ric_id -> ricId, rimuovi created_at
+      _speseCache[y][m].push({
+        id: s.id, data: s.data, descrizione: s.descrizione,
+        importo: s.importo, stato: s.stato,
+        ...(s.ric_id && { ricId: s.ric_id })
+      });
     }
 
     // --- Entrate ---
@@ -86,21 +91,30 @@ async function caricaDaSupabase() {
       const y = e.data.substring(0, 4);
       const m = parseInt(e.data.substring(5, 7)) - 1;
       if (!_entrateCache[y]) _entrateCache[y] = Array.from({ length: 12 }, () => []);
-      _entrateCache[y][m].push(e);
+      // Converti ric_id -> ricId, rimuovi created_at
+      _entrateCache[y][m].push({
+        id: e.id, data: e.data, descrizione: e.descrizione,
+        importo: e.importo,
+        ...(e.ric_id && { ricId: e.ric_id })
+      });
     }
 
     // --- Categorie ---
     _categorieCache = { entrate: [], uscite: [] };
     for (const c of categorie) {
       if (!_categorieCache[c.tipo]) _categorieCache[c.tipo] = [];
-      _categorieCache[c.tipo].push(c);
+      _categorieCache[c.tipo].push({ id: c.id, descrizione: c.descrizione });
     }
 
     // --- Ricorrenti ---
     _ricorrentiCache = { entrate: [], uscite: [] };
     for (const r of ricorrenti) {
       if (!_ricorrentiCache[r.tipo]) _ricorrentiCache[r.tipo] = [];
-      _ricorrentiCache[r.tipo].push(r);
+      // Converti data_inizio -> dataInizio, data_fine -> dataFine
+      _ricorrentiCache[r.tipo].push({
+        id: r.id, descrizione: r.descrizione, importo: r.importo,
+        dataInizio: r.data_inizio, dataFine: r.data_fine
+      });
     }
 
     _cacheReady = true;
@@ -562,23 +576,21 @@ function applicaRicorrenti(year) {
 
 async function syncSpeseSupabase(year, mesi) {
   try {
-    // Cancella tutte le spese di quest'anno su Supabase
     for (let m = 0; m < 12; m++) {
       for (const s of (mesi[m] || [])) {
         try { await sb("DELETE", "spese", { params: { id: `eq.${s.id}` } }); } catch (_) {}
       }
     }
-  } catch (e) { /* fallito silenziosamente */ }
+  } catch (e) {}
 
-  // Re-inserisce tutte le spese
   for (let m = 0; m < 12; m++) {
     for (const s of (mesi[m] || [])) {
-      try {
-        await sb("POST", "spese", { body: s });
-      } catch (e) {
-        // Se esiste già (duplicato), upsert
-        try { await sb("PATCH", "spese", { params: { id: `eq.${s.id}` }, body: s }); } catch (_) {}
-      }
+      const body = {
+        id: s.id, data: s.data, descrizione: s.descrizione,
+        importo: s.importo, stato: s.stato || "preventivata"
+      };
+      if (s.ricId) body.ric_id = s.ricId;
+      try { await sb("POST", "spese", { body }); } catch (_) {}
     }
   }
 }
@@ -594,24 +606,28 @@ async function syncEntrateSupabase(year, mesi) {
 
   for (let m = 0; m < 12; m++) {
     for (const e of (mesi[m] || [])) {
-      try {
-        await sb("POST", "entrate", { body: e });
-      } catch (_) {
-        try { await sb("PATCH", "entrate", { params: { id: `eq.${e.id}` }, body: e }); } catch (_) {}
-      }
+      const body = {
+        id: e.id, data: e.data, descrizione: e.descrizione, importo: e.importo
+      };
+      if (e.ricId) body.ric_id = e.ricId;
+      try { await sb("POST", "entrate", { body }); } catch (_) {}
     }
   }
 }
 
 async function syncCategorieSupabase(cat) {
   try {
+    // Cancella tutto
     const all = [...(cat.entrate || []), ...(cat.uscite || [])];
-    // Cancella tutto e reinserisce
     for (const c of all) {
       try { await sb("DELETE", "categorie", { params: { id: `eq.${c.id}` } }); } catch (_) {}
     }
-    for (const c of all) {
-      try { await sb("POST", "categorie", { body: c }); } catch (_) {}
+    // Reinserisce con campo tipo
+    for (const c of (cat.entrate || [])) {
+      await sb("POST", "categorie", { body: { id: c.id, tipo: "entrate", descrizione: c.descrizione } });
+    }
+    for (const c of (cat.uscite || [])) {
+      await sb("POST", "categorie", { body: { id: c.id, tipo: "uscite", descrizione: c.descrizione } });
     }
   } catch (e) {
     console.warn("Sync categorie fallito:", e.message);
@@ -620,12 +636,21 @@ async function syncCategorieSupabase(cat) {
 
 async function syncRicorrentiSupabase(ric) {
   try {
+    // Cancella tutto
     const all = [...(ric.entrate || []), ...(ric.uscite || [])];
     for (const r of all) {
       try { await sb("DELETE", "ricorrenti", { params: { id: `eq.${r.id}` } }); } catch (_) {}
     }
-    for (const r of all) {
-      try { await sb("POST", "ricorrenti", { body: r }); } catch (_) {}
+    // Reinserisce con campo tipo e snake_case
+    for (const r of (ric.entrate || [])) {
+      await sb("POST", "ricorrenti", {
+        body: { id: r.id, tipo: "entrate", descrizione: r.descrizione, importo: r.importo, data_inizio: r.dataInizio, data_fine: r.dataFine }
+      });
+    }
+    for (const r of (ric.uscite || [])) {
+      await sb("POST", "ricorrenti", {
+        body: { id: r.id, tipo: "uscite", descrizione: r.descrizione, importo: r.importo, data_inizio: r.dataInizio, data_fine: r.dataFine }
+      });
     }
   } catch (e) {
     console.warn("Sync ricorrenti fallito:", e.message);
