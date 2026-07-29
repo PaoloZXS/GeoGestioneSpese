@@ -64,7 +64,7 @@
             `Eliminare la categoria "${catItem.descrizione}"?`
           );
           if (confirmed) {
-            deleteCategoria(tipo, realIdx);
+            await deleteCategoria(tipo, realIdx);
             renderCategorie();
           }
         });
@@ -80,10 +80,10 @@
     input.focus();
     input.setSelectionRange(input.value.length, input.value.length);
 
-    const salva = function () {
+    const salva = async function () {
       const val = input.value.trim();
       if (val) {
-        updateCategoria(tipo, idx, val);
+        await updateCategoria(tipo, idx, val);
         renderCategorie();
       } else {
         item.classList.remove("editing");
@@ -112,10 +112,10 @@
     );
   }
 
-  function aggiungiCategoria(tipo, inputEl) {
+  async function aggiungiCategoria(tipo, inputEl) {
     const val = inputEl.value.trim();
     if (!val) return;
-    addCategoria(tipo, val);
+    await addCategoria(tipo, val);
     inputEl.value = "";
     renderCategorie();
     inputEl.focus();

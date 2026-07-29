@@ -226,7 +226,7 @@
     div.addEventListener("dragleave", function () {
       div.classList.remove("drag-over");
     });
-    div.addEventListener("drop", function (e) {
+    div.addEventListener("drop", async function (e) {
       e.preventDefault();
       div.classList.remove("drag-over");
       const raw = e.dataTransfer.getData("text/plain");
@@ -234,7 +234,7 @@
       try {
         const data = JSON.parse(raw);
         if (data.fromMonth === meseIndex) return;
-        moveSpesa(
+        await moveSpesa(
           data.expenseId,
           currentYear,
           data.fromMonth,
@@ -310,7 +310,7 @@
       return;
     }
 
-    addEntrata(currentYear, currentEntrateMonth, {
+    await addEntrata(currentYear, currentEntrateMonth, {
       id: generaId("entrata"),
       data: data,
       descrizione: desc,
@@ -450,7 +450,7 @@
         await showAlert("Inserire un importo valido");
         return;
       }
-      addSpesa(currentYear, currentEditMonthIdx, {
+      await addSpesa(currentYear, currentEditMonthIdx, {
         id: generaId("spesa"),
         data: nuovaData,
         descrizione: nuovaDesc,
@@ -472,23 +472,33 @@
       const entrata = all.find((e) => e.id === currentEditExpenseId);
       if (!entrata) return;
       const nuovoImporto = entrata.importo + addImporto;
-      updateEntrata(currentYear, currentEditMonthIdx, currentEditExpenseId, {
-        descrizione: nuovaDesc,
-        importo: nuovoImporto,
-        data: nuovaData
-      });
+      await updateEntrata(
+        currentYear,
+        currentEditMonthIdx,
+        currentEditExpenseId,
+        {
+          descrizione: nuovaDesc,
+          importo: nuovoImporto,
+          data: nuovaData
+        }
+      );
     } else {
       // MODIFICA SPESA
       const all = getSpeseMese(currentYear, currentEditMonthIdx);
       const spesa = all.find((s) => s.id === currentEditExpenseId);
       if (!spesa) return;
       const nuovoImporto = spesa.importo + addImporto;
-      updateSpesa(currentYear, currentEditMonthIdx, currentEditExpenseId, {
-        descrizione: nuovaDesc,
-        importo: nuovoImporto,
-        data: nuovaData,
-        stato: nuovoStato
-      });
+      await updateSpesa(
+        currentYear,
+        currentEditMonthIdx,
+        currentEditExpenseId,
+        {
+          descrizione: nuovaDesc,
+          importo: nuovoImporto,
+          data: nuovaData,
+          stato: nuovoStato
+        }
+      );
     }
     renderPlanning();
     closeEditModal();
@@ -505,9 +515,17 @@
     const confirmed = await showConfirm(`Eliminare questa ${label}?`);
     if (confirmed) {
       if (isEditingEntrata) {
-        deleteEntrata(currentYear, currentEditMonthIdx, currentEditExpenseId);
+        await deleteEntrata(
+          currentYear,
+          currentEditMonthIdx,
+          currentEditExpenseId
+        );
       } else {
-        deleteSpesa(currentYear, currentEditMonthIdx, currentEditExpenseId);
+        await deleteSpesa(
+          currentYear,
+          currentEditMonthIdx,
+          currentEditExpenseId
+        );
       }
       renderPlanning();
       closeEditModal();
@@ -581,9 +599,17 @@
     const confirmed = await showConfirm("Eliminare solo questa ricorrenza?");
     if (confirmed) {
       if (isEditingEntrata) {
-        deleteEntrata(currentYear, currentEditMonthIdx, currentEditExpenseId);
+        await deleteEntrata(
+          currentYear,
+          currentEditMonthIdx,
+          currentEditExpenseId
+        );
       } else {
-        deleteSpesa(currentYear, currentEditMonthIdx, currentEditExpenseId);
+        await deleteSpesa(
+          currentYear,
+          currentEditMonthIdx,
+          currentEditExpenseId
+        );
       }
       renderPlanning();
       closeEditModal();
@@ -640,7 +666,7 @@
         const lista = getList(currentYear, m);
         const daEliminare = lista.filter((s) => s.ricId === ricId);
         for (const s of daEliminare) {
-          deleteItem(currentYear, m, s.id);
+          await deleteItem(currentYear, m, s.id);
         }
       }
       ricRangeModal.classList.remove("active");
@@ -667,7 +693,7 @@
         const lista = getList(currentYear, m);
         const daEliminare = lista.filter((s) => s.ricId === ricId);
         for (const s of daEliminare) {
-          deleteItem(currentYear, m, s.id);
+          await deleteItem(currentYear, m, s.id);
         }
       }
       renderPlanning();

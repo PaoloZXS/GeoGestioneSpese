@@ -1,17 +1,6 @@
 /* =============================================
-   DATA LAYER — Supabase + localStorage cache
-   =============================================
-   I dati vengono letti/scritti su Supabase.
-   localStorage funge da cache di backup veloce.
+   DATA LAYER — Solo Supabase + cache in memoria
    ============================================= */
-
-const STORAGE_KEY_SPESE = "geo_spese";
-const STORAGE_KEY_ENTRATE = "geo_entrate";
-const STORAGE_KEY_CATEGORIE = "geo_categorie";
-const STORAGE_KEY_RICORRENTI = "geo_ricorrenti";
-const STORAGE_KEY_YEAR = "geo_current_year";
-const STORAGE_KEY_VERSION = "geo_data_version";
-const DATA_VERSION = 3;
 
 const DATA_RIFERIMENTO = new Date(2026, 6, 26);
 
@@ -39,7 +28,11 @@ async function sb(method, table, options = {}) {
     url += "?" + new URLSearchParams(options.params).toString();
   }
 
-  const resp = await fetch(url, { method, headers, body: options.body ? JSON.stringify(options.body) : undefined });
+  const resp = await fetch(url, {
+    method,
+    headers,
+    body: options.body ? JSON.stringify(options.body) : undefined
+  });
   if (!resp.ok) {
     const text = await resp.text().catch(() => "");
     throw new Error(`Supabase ${method} ${table}: ${resp.status} ${text}`);
@@ -76,11 +69,15 @@ async function caricaDaSupabase() {
     for (const s of spese) {
       const y = s.data.substring(0, 4);
       const m = parseInt(s.data.substring(5, 7)) - 1;
-      if (!_speseCache[y]) _speseCache[y] = Array.from({ length: 12 }, () => []);
+      if (!_speseCache[y])
+        _speseCache[y] = Array.from({ length: 12 }, () => []);
       // Converti ric_id -> ricId, rimuovi created_at
       _speseCache[y][m].push({
-        id: s.id, data: s.data, descrizione: s.descrizione,
-        importo: s.importo, stato: s.stato,
+        id: s.id,
+        data: s.data,
+        descrizione: s.descrizione,
+        importo: s.importo,
+        stato: s.stato,
         ...(s.ric_id && { ricId: s.ric_id })
       });
     }
@@ -90,10 +87,13 @@ async function caricaDaSupabase() {
     for (const e of entrate) {
       const y = e.data.substring(0, 4);
       const m = parseInt(e.data.substring(5, 7)) - 1;
-      if (!_entrateCache[y]) _entrateCache[y] = Array.from({ length: 12 }, () => []);
+      if (!_entrateCache[y])
+        _entrateCache[y] = Array.from({ length: 12 }, () => []);
       // Converti ric_id -> ricId, rimuovi created_at
       _entrateCache[y][m].push({
-        id: e.id, data: e.data, descrizione: e.descrizione,
+        id: e.id,
+        data: e.data,
+        descrizione: e.descrizione,
         importo: e.importo,
         ...(e.ric_id && { ricId: e.ric_id })
       });
@@ -112,28 +112,26 @@ async function caricaDaSupabase() {
       if (!_ricorrentiCache[r.tipo]) _ricorrentiCache[r.tipo] = [];
       // Converti data_inizio -> dataInizio, data_fine -> dataFine
       _ricorrentiCache[r.tipo].push({
-        id: r.id, descrizione: r.descrizione, importo: r.importo,
-        dataInizio: r.data_inizio, dataFine: r.data_fine
+        id: r.id,
+        descrizione: r.descrizione,
+        importo: r.importo,
+        dataInizio: r.data_inizio,
+        dataFine: r.data_fine
       });
     }
 
     _cacheReady = true;
-
-    // Sincronizza in localStorage come backup
-    for (const [year, mesi] of Object.entries(_speseCache)) {
-      localStorage.setItem(getSpeseKey(year), JSON.stringify(mesi));
-    }
-    for (const [year, mesi] of Object.entries(_entrateCache)) {
-      localStorage.setItem(getEntrateKey(year), JSON.stringify(mesi));
-    }
-    if (_categorieCache) localStorage.setItem(STORAGE_KEY_CATEGORIE, JSON.stringify(_categorieCache));
-    if (_ricorrentiCache) localStorage.setItem(STORAGE_KEY_RICORRENTI, JSON.stringify(_ricorrentiCache));
-
     console.log("✅ Dati caricati da Supabase");
     window.dispatchEvent(new CustomEvent("dataReady"));
     return true;
   } catch (e) {
-    console.warn("📁 Supabase non disponibile — uso localStorage:", e.message);
+    console.warn("❌ Supabase non disponibile:", e.message);
+    // Fallback: dati vuoti, l'app mostra comunque le UI
+    _speseCache = {};
+    _entrateCache = {};
+    _categorieCache = getDefaultCategorie();
+    _ricorrentiCache = getDefaultRicorrenti();
+    _cacheReady = true;
     window.dispatchEvent(new CustomEvent("dataReady"));
     return false;
   }
@@ -211,14 +209,6 @@ function getDefaultRicorrenti() {
   };
 }
 
-function generaSpeseDefault(meseIndex, year) {
-  return [];
-}
-
-function generaEntrateDefault(meseIndex, year) {
-  return [];
-}
-
 // =============================================
 // GESTIONE ANNO CORRENTE
 // =============================================
@@ -233,49 +223,19 @@ function setCurrentYear(year) {
   _currentYear = year;
 }
 
-// Forza pulizia dati vecchi se versione cambiata
-function checkDataVersion() {
-  const saved = parseInt(localStorage.getItem(STORAGE_KEY_VERSION)) || 0;
-  if (saved !== DATA_VERSION) {
-    for (let y = 2020; y <= 2040; y++) {
-      localStorage.removeItem(getSpeseKey(y));
-      localStorage.removeItem(getEntrateKey(y));
-    }
-    localStorage.setItem(STORAGE_KEY_VERSION, DATA_VERSION);
-  }
-}
-
 // =============================================
 // GESTIONE SPESE
 // =============================================
 
-function getSpeseKey(year) {
-  return STORAGE_KEY_SPESE + "_" + year;
-}
-
 function getSpese(year) {
-  checkDataVersion();
-
-  // Se cache caricata, usala
-  if (_cacheReady && _speseCache[year]) {
-    return _speseCache[year];
-  }
-
-  // Altrimenti localStorage
-  const key = getSpeseKey(year);
-  let data = localStorage.getItem(key);
-  if (!data) {
-    const mesi = Array.from({ length: 12 }, (_, i) => generaSpeseDefault(i, year));
-    data = JSON.stringify(mesi);
-    localStorage.setItem(key, data);
-  }
-  return JSON.parse(data);
+  if (_speseCache[year]) return _speseCache[year];
+  // Cache non ancora pronta — restituisci array vuoti
+  return Array.from({ length: 12 }, () => []);
 }
 
-function saveSpese(year, mesi) {
-  localStorage.setItem(getSpeseKey(year), JSON.stringify(mesi));
+async function saveSpese(year, mesi) {
   _speseCache[year] = mesi;
-  syncSpeseSupabase(year, mesi);
+  await syncSpeseSupabase(year, mesi);
 }
 
 function getSpeseMese(year, monthIdx) {
@@ -283,34 +243,34 @@ function getSpeseMese(year, monthIdx) {
   return all[monthIdx] || [];
 }
 
-function addSpesa(year, monthIdx, spesa) {
+async function addSpesa(year, monthIdx, spesa) {
   const all = getSpese(year);
   if (!all[monthIdx]) all[monthIdx] = [];
   all[monthIdx].push(spesa);
-  saveSpese(year, all);
+  await saveSpese(year, all);
 }
 
-function updateSpesa(year, monthIdx, expenseId, updates) {
+async function updateSpesa(year, monthIdx, expenseId, updates) {
   const all = getSpese(year);
   if (!all[monthIdx]) return false;
   const idx = all[monthIdx].findIndex((s) => s.id === expenseId);
   if (idx === -1) return false;
   all[monthIdx][idx] = { ...all[monthIdx][idx], ...updates };
-  saveSpese(year, all);
+  await saveSpese(year, all);
   return true;
 }
 
-function deleteSpesa(year, monthIdx, expenseId) {
+async function deleteSpesa(year, monthIdx, expenseId) {
   const all = getSpese(year);
   if (!all[monthIdx]) return false;
   const idx = all[monthIdx].findIndex((s) => s.id === expenseId);
   if (idx === -1) return false;
   all[monthIdx].splice(idx, 1);
-  saveSpese(year, all);
+  await saveSpese(year, all);
   return true;
 }
 
-function moveSpesa(expenseId, fromYear, fromMonth, toYear, toMonth) {
+async function moveSpesa(expenseId, fromYear, fromMonth, toYear, toMonth) {
   const fromAll = getSpese(fromYear);
   const toAll = toYear === fromYear ? fromAll : getSpese(toYear);
 
@@ -319,7 +279,7 @@ function moveSpesa(expenseId, fromYear, fromMonth, toYear, toMonth) {
   if (idx === -1) return false;
 
   const expense = fromAll[fromMonth].splice(idx, 1)[0];
-  saveSpese(fromYear, fromAll);
+  await saveSpese(fromYear, fromAll);
 
   // Aggiorna la data al mese di destinazione
   const day = 15;
@@ -329,7 +289,7 @@ function moveSpesa(expenseId, fromYear, fromMonth, toYear, toMonth) {
   toAll[toMonth].push(expense);
 
   if (toYear !== fromYear) {
-    saveSpese(toYear, toAll);
+    await saveSpese(toYear, toAll);
   }
   return true;
 }
@@ -338,29 +298,14 @@ function moveSpesa(expenseId, fromYear, fromMonth, toYear, toMonth) {
 // GESTIONE ENTRATE
 // =============================================
 
-function getEntrateKey(year) {
-  return STORAGE_KEY_ENTRATE + "_" + year;
-}
-
 function getEntrate(year) {
-  if (_cacheReady && _entrateCache[year]) {
-    return _entrateCache[year];
-  }
-
-  const key = getEntrateKey(year);
-  let data = localStorage.getItem(key);
-  if (!data) {
-    const mesi = Array.from({ length: 12 }, (_, i) => generaEntrateDefault(i, year));
-    data = JSON.stringify(mesi);
-    localStorage.setItem(key, data);
-  }
-  return JSON.parse(data);
+  if (_entrateCache[year]) return _entrateCache[year];
+  return Array.from({ length: 12 }, () => []);
 }
 
-function saveEntrate(year, mesi) {
-  localStorage.setItem(getEntrateKey(year), JSON.stringify(mesi));
+async function saveEntrate(year, mesi) {
   _entrateCache[year] = mesi;
-  syncEntrateSupabase(year, mesi);
+  await syncEntrateSupabase(year, mesi);
 }
 
 function getEntrateMese(year, monthIdx) {
@@ -368,30 +313,30 @@ function getEntrateMese(year, monthIdx) {
   return all[monthIdx] || [];
 }
 
-function addEntrata(year, monthIdx, entrata) {
+async function addEntrata(year, monthIdx, entrata) {
   const all = getEntrate(year);
   if (!all[monthIdx]) all[monthIdx] = [];
   all[monthIdx].push(entrata);
-  saveEntrate(year, all);
+  await saveEntrate(year, all);
 }
 
-function updateEntrata(year, monthIdx, entrataId, updates) {
+async function updateEntrata(year, monthIdx, entrataId, updates) {
   const all = getEntrate(year);
   if (!all[monthIdx]) return false;
   const idx = all[monthIdx].findIndex((e) => e.id === entrataId);
   if (idx === -1) return false;
   all[monthIdx][idx] = { ...all[monthIdx][idx], ...updates };
-  saveEntrate(year, all);
+  await saveEntrate(year, all);
   return true;
 }
 
-function deleteEntrata(year, monthIdx, entrataId) {
+async function deleteEntrata(year, monthIdx, entrataId) {
   const all = getEntrate(year);
   if (!all[monthIdx]) return false;
   const idx = all[monthIdx].findIndex((e) => e.id === entrataId);
   if (idx === -1) return false;
   all[monthIdx].splice(idx, 1);
-  saveEntrate(year, all);
+  await saveEntrate(year, all);
   return true;
 }
 
@@ -418,44 +363,38 @@ function getCategorie() {
   if (_cacheReady && _categorieCache) {
     return _categorieCache;
   }
-
-  let data = localStorage.getItem(STORAGE_KEY_CATEGORIE);
-  if (!data) {
-    data = JSON.stringify(getDefaultCategorie());
-    localStorage.setItem(STORAGE_KEY_CATEGORIE, data);
-  }
-  return JSON.parse(data);
+  // Fallback finché Supabase non carica
+  return getDefaultCategorie();
 }
 
-function saveCategorie(cat) {
-  localStorage.setItem(STORAGE_KEY_CATEGORIE, JSON.stringify(cat));
+async function saveCategorie(cat) {
   _categorieCache = cat;
-  syncCategorieSupabase(cat);
+  await syncCategorieSupabase(cat);
 }
 
-function addCategoria(tipo, descrizione) {
+async function addCategoria(tipo, descrizione) {
   const cat = getCategorie();
   cat[tipo].push({
     id: generaId("cat-" + (tipo === "entrate" ? "e" : "u")),
     descrizione
   });
-  saveCategorie(cat);
+  await saveCategorie(cat);
   return cat;
 }
 
-function updateCategoria(tipo, idx, descrizione) {
+async function updateCategoria(tipo, idx, descrizione) {
   const cat = getCategorie();
   if (cat[tipo][idx]) {
     cat[tipo][idx].descrizione = descrizione;
-    saveCategorie(cat);
+    await saveCategorie(cat);
   }
   return cat;
 }
 
-function deleteCategoria(tipo, idx) {
+async function deleteCategoria(tipo, idx) {
   const cat = getCategorie();
   cat[tipo].splice(idx, 1);
-  saveCategorie(cat);
+  await saveCategorie(cat);
   return cat;
 }
 
@@ -467,50 +406,48 @@ function getRicorrenti() {
   if (_cacheReady && _ricorrentiCache) {
     return _ricorrentiCache;
   }
-
-  let data = localStorage.getItem(STORAGE_KEY_RICORRENTI);
-  if (!data) {
-    data = JSON.stringify(getDefaultRicorrenti());
-    localStorage.setItem(STORAGE_KEY_RICORRENTI, data);
-  }
-  return JSON.parse(data);
+  return getDefaultRicorrenti();
 }
 
-function saveRicorrenti(ric) {
-  localStorage.setItem(STORAGE_KEY_RICORRENTI, JSON.stringify(ric));
+async function saveRicorrenti(ric) {
   _ricorrentiCache = ric;
-  syncRicorrentiSupabase(ric);
+  await syncRicorrentiSupabase(ric);
 }
 
-function addRicorrente(tipo, ricorrente) {
+async function addRicorrente(tipo, ricorrente) {
   const ric = getRicorrenti();
   ric[tipo].push(ricorrente);
-  saveRicorrenti(ric);
+  await saveRicorrenti(ric);
   return ric;
 }
 
-function updateRicorrente(tipo, idx, data) {
+async function updateRicorrente(tipo, idx, data) {
   const ric = getRicorrenti();
   if (ric[tipo][idx]) {
     ric[tipo][idx] = { ...ric[tipo][idx], ...data };
-    saveRicorrenti(ric);
+    await saveRicorrenti(ric);
   }
   return ric;
 }
 
-function deleteRicorrente(tipo, idx) {
+async function deleteRicorrente(tipo, idx) {
   const ric = getRicorrenti();
   ric[tipo].splice(idx, 1);
-  saveRicorrenti(ric);
+  await saveRicorrenti(ric);
   return ric;
 }
 
 /**
- * Applica i ricorrenti al year corrente, creando spese/entrate per ogni mese
- * nel range di date, solo se non esiste già una voce con stessa descrizione e data.
+ * Applica i ricorrenti all'anno corrente, creando/aggiornando spese/entrate.
+ * Accumula tutte le modifiche in memoria e le salva su Supabase in un'unica
+ * chiamata per tipo (spese/entrate), per evitare race condition e sync multipli.
  */
-function applicaRicorrenti(year) {
+async function applicaRicorrenti(year) {
   const ric = getRicorrenti();
+
+  // Lavora su copie mutabili delle strutture dati correnti
+  const speseAggiornate = getSpese(year);
+  const entrateAggiornate = getEntrate(year);
 
   for (const tipo of ["entrate", "uscite"]) {
     for (const r of ric[tipo]) {
@@ -525,19 +462,17 @@ function applicaRicorrenti(year) {
         const dataStr = `${year}-${String(m + 1).padStart(2, "0")}-01`;
 
         if (tipo === "uscite") {
-          const allSpese = getSpeseMese(year, m);
-          const esistente = allSpese.find(
+          if (!speseAggiornate[m]) speseAggiornate[m] = [];
+          const esistente = speseAggiornate[m].find(
             (s) => s.descrizione === r.descrizione && s.data === dataStr
           );
           if (esistente) {
-            // Aggiorna importo e ricId al valore corrente del ricorrente
-            const updates = { ricId: r.id };
+            esistente.ricId = r.id;
             if (esistente.importo !== r.importo) {
-              updates.importo = r.importo;
+              esistente.importo = r.importo;
             }
-            updateSpesa(year, m, esistente.id, updates);
           } else {
-            addSpesa(year, m, {
+            speseAggiornate[m].push({
               id: generaId("spesa"),
               data: dataStr,
               descrizione: r.descrizione,
@@ -547,20 +482,17 @@ function applicaRicorrenti(year) {
             });
           }
         } else {
-          const allEntrate = getEntrate(year);
-          const entrateMese = allEntrate[m] || [];
-          const esistente = entrateMese.find(
+          if (!entrateAggiornate[m]) entrateAggiornate[m] = [];
+          const esistente = entrateAggiornate[m].find(
             (e) => e.descrizione === r.descrizione && e.data === dataStr
           );
           if (esistente) {
-            // Aggiorna importo e ricId al valore corrente del ricorrente
             esistente.ricId = r.id;
             if (esistente.importo !== r.importo) {
               esistente.importo = r.importo;
             }
-            saveEntrate(year, allEntrate);
           } else {
-            addEntrata(year, m, {
+            entrateAggiornate[m].push({
               id: generaId("entrata"),
               data: dataStr,
               descrizione: r.descrizione,
@@ -572,28 +504,43 @@ function applicaRicorrenti(year) {
       }
     }
   }
+
+  // Un unico salvataggio per tipo su Supabase
+  await saveSpese(year, speseAggiornate);
+  await saveEntrate(year, entrateAggiornate);
 }
 
 // =============================================
-// SYNC SUPABASE (ASINCRONO — FIRE & FORGET)
+// SYNC SUPABASE
 // =============================================
 
 async function syncSpeseSupabase(year, mesi) {
   try {
     // Cancella TUTTE le spese dell'anno su Supabase
-    await fetch(`${SUPABASE_URL}/rest/v1/spese?data=gte.${year}-01-01&data=lte.${year}-12-31`, {
-      method: "DELETE",
-      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
-    });
+    await fetch(
+      `${SUPABASE_URL}/rest/v1/spese?data=gte.${year}-01-01&data=lte.${year}-12-31`,
+      {
+        method: "DELETE",
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${SUPABASE_ANON_KEY}`
+        }
+      }
+    );
     // Reinserisce quelle correnti
     for (let m = 0; m < 12; m++) {
-      for (const s of (mesi[m] || [])) {
+      for (const s of mesi[m] || []) {
         const body = {
-          id: s.id, data: s.data, descrizione: s.descrizione,
-          importo: s.importo, stato: s.stato || "preventivata"
+          id: s.id,
+          data: s.data,
+          descrizione: s.descrizione,
+          importo: s.importo,
+          stato: s.stato || "preventivata"
         };
         if (s.ricId) body.ric_id = s.ricId;
-        try { await sb("POST", "spese", { body }); } catch (_) {}
+        try {
+          await sb("POST", "spese", { body });
+        } catch (_) {}
       }
     }
   } catch (e) {
@@ -604,18 +551,29 @@ async function syncSpeseSupabase(year, mesi) {
 async function syncEntrateSupabase(year, mesi) {
   try {
     // Cancella TUTTE le entrate dell'anno su Supabase
-    await fetch(`${SUPABASE_URL}/rest/v1/entrate?data=gte.${year}-01-01&data=lte.${year}-12-31`, {
-      method: "DELETE",
-      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
-    });
+    await fetch(
+      `${SUPABASE_URL}/rest/v1/entrate?data=gte.${year}-01-01&data=lte.${year}-12-31`,
+      {
+        method: "DELETE",
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${SUPABASE_ANON_KEY}`
+        }
+      }
+    );
     // Reinserisce quelle correnti
     for (let m = 0; m < 12; m++) {
-      for (const e of (mesi[m] || [])) {
+      for (const e of mesi[m] || []) {
         const body = {
-          id: e.id, data: e.data, descrizione: e.descrizione, importo: e.importo
+          id: e.id,
+          data: e.data,
+          descrizione: e.descrizione,
+          importo: e.importo
         };
         if (e.ricId) body.ric_id = e.ricId;
-        try { await sb("POST", "entrate", { body }); } catch (_) {}
+        try {
+          await sb("POST", "entrate", { body });
+        } catch (_) {}
       }
     }
   } catch (e) {
@@ -628,14 +586,21 @@ async function syncCategorieSupabase(cat) {
     // Cancella TUTTE le categorie su Supabase (id non nullo)
     await fetch(`${SUPABASE_URL}/rest/v1/categorie?id=not.is.null`, {
       method: "DELETE",
-      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`
+      }
     });
     // Reinserisce quelle correnti con campo tipo
-    for (const c of (cat.entrate || [])) {
-      await sb("POST", "categorie", { body: { id: c.id, tipo: "entrate", descrizione: c.descrizione } });
+    for (const c of cat.entrate || []) {
+      await sb("POST", "categorie", {
+        body: { id: c.id, tipo: "entrate", descrizione: c.descrizione }
+      });
     }
-    for (const c of (cat.uscite || [])) {
-      await sb("POST", "categorie", { body: { id: c.id, tipo: "uscite", descrizione: c.descrizione } });
+    for (const c of cat.uscite || []) {
+      await sb("POST", "categorie", {
+        body: { id: c.id, tipo: "uscite", descrizione: c.descrizione }
+      });
     }
   } catch (e) {
     console.warn("Sync categorie fallito:", e.message);
@@ -647,17 +612,34 @@ async function syncRicorrentiSupabase(ric) {
     // Cancella TUTTI i ricorrenti su Supabase
     await fetch(`${SUPABASE_URL}/rest/v1/ricorrenti?id=not.is.null`, {
       method: "DELETE",
-      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`
+      }
     });
     // Reinserisce quelli correnti
-    for (const r of (ric.entrate || [])) {
+    for (const r of ric.entrate || []) {
       await sb("POST", "ricorrenti", {
-        body: { id: r.id, tipo: "entrate", descrizione: r.descrizione, importo: r.importo, data_inizio: r.dataInizio, data_fine: r.dataFine }
+        body: {
+          id: r.id,
+          tipo: "entrate",
+          descrizione: r.descrizione,
+          importo: r.importo,
+          data_inizio: r.dataInizio,
+          data_fine: r.dataFine
+        }
       });
     }
-    for (const r of (ric.uscite || [])) {
+    for (const r of ric.uscite || []) {
       await sb("POST", "ricorrenti", {
-        body: { id: r.id, tipo: "uscite", descrizione: r.descrizione, importo: r.importo, data_inizio: r.dataInizio, data_fine: r.dataFine }
+        body: {
+          id: r.id,
+          tipo: "uscite",
+          descrizione: r.descrizione,
+          importo: r.importo,
+          data_inizio: r.dataInizio,
+          data_fine: r.dataFine
+        }
       });
     }
   } catch (e) {
@@ -670,3 +652,14 @@ async function syncRicorrentiSupabase(ric) {
 // =============================================
 
 caricaDaSupabase();
+
+// Rimuovi chiavi localStorage obsolete (dati vecchi, non più usati)
+try {
+  for (let y = 2020; y <= 2040; y++) {
+    localStorage.removeItem("geo_spese_" + y);
+    localStorage.removeItem("geo_entrate_" + y);
+  }
+  localStorage.removeItem("geo_categorie");
+  localStorage.removeItem("geo_ricorrenti");
+  localStorage.removeItem("geo_data_version");
+} catch (_) {}

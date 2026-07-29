@@ -144,7 +144,7 @@
 
     if (editingTipo && editingIdx >= 0) {
       // MODIFICA: aggiorna ricorrente esistente
-      updateRicorrente(editingTipo, editingIdx, {
+      await updateRicorrente(editingTipo, editingIdx, {
         descrizione: desc,
         importo: importo,
         dataInizio: dataInizio,
@@ -153,7 +153,7 @@
       annullaModifica();
     } else {
       // NUOVO: aggiungi ricorrente
-      addRicorrente(tipo, {
+      await addRicorrente(tipo, {
         id: generaId("ric-" + (tipo === "entrate" ? "e" : "u")),
         descrizione: desc,
         importo: importo,
@@ -194,9 +194,9 @@
   // APPLY
   // =============================================
 
-  function applicaESalva() {
+  async function applicaESalva() {
     const year = getCurrentYear();
-    applicaRicorrenti(year);
+    await applicaRicorrenti(year);
     // Redirect alla dashboard
     window.location.href = "index.html";
   }
@@ -238,7 +238,7 @@
       `Eliminare "${item.descrizione}" dalle voci programmate?`
     );
     if (confirmed) {
-      deleteRicorrente(editingTipo, editingIdx);
+      await deleteRicorrente(editingTipo, editingIdx);
       annullaModifica();
       renderRicorrenti();
     }
