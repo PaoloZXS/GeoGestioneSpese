@@ -19,6 +19,7 @@ class _InsertScreenState extends State<InsertScreen> {
   bool _isEntrata = false; // false = uscita
   DateTime _data = DateTime.now();
   String? _categoria;
+  String _stato = 'preventivata';
   List<Map<String, dynamic>> _categorie = [];
   bool _caricandoCategorie = true;
   bool _salvando = false;
@@ -117,7 +118,7 @@ class _InsertScreenState extends State<InsertScreen> {
           'data': dataStr,
           'descrizione': _categoria,
           'importo': importo,
-          'stato': 'preventivata',
+          'stato': _stato,
           'origine': 'mobile',
           'visto_da_desktop': false,
         });
@@ -127,6 +128,7 @@ class _InsertScreenState extends State<InsertScreen> {
       setState(() {
         _salvando = false;
         _categoria = null;
+        _stato = 'preventivata';
         _importoController.clear();
       });
       _messaggio('Salvato!');
@@ -213,6 +215,29 @@ class _InsertScreenState extends State<InsertScreen> {
                   : (v) => setState(() => _categoria = v),
             ),
             const SizedBox(height: 16),
+
+            // ---- STATO (solo per uscite) ----
+            if (!_isEntrata) ...[
+              DropdownButtonFormField<String>(
+                value: _stato,
+                decoration: const InputDecoration(
+                  labelText: 'Stato',
+                  prefixIcon: Icon(Icons.flag),
+                ),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'preventivata',
+                    child: Text('Preventivata'),
+                  ),
+                  DropdownMenuItem(value: 'eseguita', child: Text('Eseguita')),
+                  DropdownMenuItem(value: 'scaduta', child: Text('Scaduta')),
+                ],
+                onChanged: _salvando
+                    ? null
+                    : (v) => setState(() => _stato = v ?? 'preventivata'),
+              ),
+              const SizedBox(height: 16),
+            ],
 
             // ---- IMPORTO ----
             TextField(
