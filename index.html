@@ -249,6 +249,28 @@
       </div>
     </div>
 
+    <!-- MODALE NUOVE VOCI DAL CELLULARE -->
+    <div class="modal-overlay" id="mobileModal">
+      <div class="modal-box mobile-modal">
+        <h3>
+          <span
+            ><i class="fas fa-mobile-alt" style="color: #8b5cf6"></i> Nuove voci
+            dal cellulare</span
+          >
+        </h3>
+        <p class="mobile-modal-sub">
+          Queste voci sono state inserite dall'app mobile e non le avevi ancora
+          viste sul desktop.
+        </p>
+        <div class="mobile-list" id="mobileList"></div>
+        <div class="btn-row">
+          <button class="save-btn" id="mobileOkBtn">
+            <i class="fas fa-check"></i> Ho visto tutto
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- NOTIFICA PERSONALIZZATA -->
     <div class="notifica-overlay" id="notificaModal">
       <div class="notifica-box">
@@ -265,5 +287,67 @@
     <script src="js/notifications.js"></script>
 
     <script src="js/dashboard.js"></script>
+
+    <script>
+      // Modale "Nuove voci dal cellulare" — mostra una sola volta le voci
+      // inserite dall'app mobile (origine='mobile') non ancora viste.
+      (function () {
+        var vociMobile = [];
+        var mobileModal = document.getElementById("mobileModal");
+        var mobileList = document.getElementById("mobileList");
+        var mobileOkBtn = document.getElementById("mobileOkBtn");
+        var controllato = false;
+
+        function mostraModaleMobile() {
+          if (vociMobile.length === 0) return;
+          mobileList.innerHTML = "";
+          vociMobile.forEach(function (v) {
+            var item = document.createElement("div");
+            item.className = "mobile-item";
+            var dataStr = formatDataBreve(v.data);
+            var tipoCls = v.tipo === "entrata" ? "entrata" : "uscita";
+            var tipoLabel = v.tipo === "entrata" ? "Entrata" : "Uscita";
+            item.innerHTML =
+              '<span class="mobile-data">' +
+              dataStr +
+              "</span>" +
+              '<span class="mobile-tipo ' +
+              tipoCls +
+              '">' +
+              tipoLabel +
+              "</span>" +
+              '<span class="mobile-desc">' +
+              v.descrizione +
+              "</span>" +
+              '<span class="mobile-importo">' +
+              formatEuro(v.importo) +
+              "</span>";
+            mobileList.appendChild(item);
+          });
+          mobileModal.classList.add("active");
+        }
+
+        mobileOkBtn.addEventListener("click", async function () {
+          mobileModal.classList.remove("active");
+          try {
+            await segnaVociMobileComeViste(
+              vociMobile.map(function (v) {
+                return v.id;
+              })
+            );
+          } catch (_) {}
+        });
+
+        async function controllaVociMobile() {
+          if (controllato) return;
+          controllato = true;
+          vociMobile = await getVociMobileNonViste();
+          mostraModaleMobile();
+        }
+
+        window.addEventListener("load", controllaVociMobile);
+        window.addEventListener("dataReady", controllaVociMobile);
+      })();
+    </script>
   </body>
 </html>

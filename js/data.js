@@ -107,6 +107,8 @@ async function caricaDaSupabase() {
         descrizione: s.descrizione,
         importo: s.importo,
         stato: s.stato,
+        origine: s.origine || "desktop",
+        vistoDaDesktop: s.visto_da_desktop || false,
         ...(s.ric_id && { ricId: s.ric_id })
       });
     }
@@ -124,6 +126,8 @@ async function caricaDaSupabase() {
         data: e.data,
         descrizione: e.descrizione,
         importo: e.importo,
+        origine: e.origine || "desktop",
+        vistoDaDesktop: e.visto_da_desktop || false,
         ...(e.ric_id && { ricId: e.ric_id })
       });
     }
@@ -608,7 +612,9 @@ async function syncSpeseSupabase(year, mesi) {
           data: s.data,
           descrizione: s.descrizione,
           importo: s.importo,
-          stato: s.stato || "preventivata"
+          stato: s.stato || "preventivata",
+          origine: s.origine || "desktop",
+          visto_da_desktop: s.vistoDaDesktop || false
         };
         if (s.ricId) body.ric_id = s.ricId;
         try {
@@ -641,7 +647,9 @@ async function syncEntrateSupabase(year, mesi) {
           id: e.id,
           data: e.data,
           descrizione: e.descrizione,
-          importo: e.importo
+          importo: e.importo,
+          origine: e.origine || "desktop",
+          visto_da_desktop: e.vistoDaDesktop || false
         };
         if (e.ricId) body.ric_id = e.ricId;
         try {
@@ -719,6 +727,89 @@ async function syncRicorrentiSupabase(ric) {
     }
   } catch (e) {
     console.warn("Sync ricorrenti fallito:", e.message);
+  }
+}
+
+// =============================================
+// VOCI MOBILE (inserite dall'app Android)
+// =============================================
+
+/**
+ * Recupera le voci inserite dal cellulare (origine='mobile') non ancora
+ * mostrate al desktop (visto_da_desktop=false). Ritorna una lista ordinata.
+ */
+async function getVociMobileNonViste() {
+  try {
+    const [spese, entrate] = await Promise.all([
+      sb("GET", "spese", {
+        params: {
+          select: "id,data,descrizione,importo",
+          origine: "eq.mobile",
+          visto_da_desktop: "eq.false",
+          order: "data.asc"
+        }
+      }),
+      sb("GET", "entrate", {
+        params: {
+          select: "id,data,descrizione,importo",
+          origine: "eq.mobile",
+          visto_da_desktop: "eq.false",
+          order: "data.asc"
+        }
+      })
+    ]);
+    const voci = [];
+    for (const s of spese) {
+      voci.push({
+        id: s.id,
+        tipo: "uscita",
+        data: s.data,
+        descrizione: s.descrizione,
+        importo: s.importo
+      });
+    }
+    for (const e of entrate) {
+      voci.push({
+        id: e.id,
+        tipo: "entrata",
+        data: e.data,
+        descrizione: e.descrizione,
+        importo: e.importo
+      });
+    }
+    voci.sort((a, b) => a.data.localeCompare(b.data));
+    return voci;
+  } catch (e) {
+    console.warn("Errore getVociMobileNonViste:", e.message);
+    return [];
+  }
+}
+
+/**
+ * Segna come viste dal desktop le voci mobile indicate
+ * (imposta visto_da_desktop = true). Da chiamare dopo la chiusura del modale.
+ */
+async function segnaVociMobileComeViste(ids) {
+  if (!ids || ids.length === 0) return;
+  const headers = {
+    apikey: SUPABASE_ANON_KEY,
+    Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+    "Content-Type": "application/json",
+    Prefer: "return=minimal"
+  };
+  const idList = ids.join(",");
+  const body = JSON.stringify({ visto_da_desktop: true });
+  try {
+    await fetch(
+      `${SUPABASE_URL}/rest/v1/spese?origine=eq.mobile&visto_da_desktop=eq.false&id=in.(${idList})`,
+      { method: "PATCH", headers, body }
+    );
+    await fetch(
+      `${SUPABASE_URL}/rest/v1/entrate?origine=eq.mobile&visto_da_desktop=eq.false&id=in.(${idList})`,
+      { method: "PATCH", headers, body }
+    );
+  } catch (e) {
+    console.warn("Errore segnaVociMobileComeViste:", e.message);
   }
 }
 

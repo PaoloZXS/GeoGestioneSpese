@@ -307,3 +307,59 @@
     margin-bottom: 18px;
   }
 }
+
+/* ---- MODALE VOCI MOBILE ---- */
+.mobile-modal {
+  max-width: 430px;
+}
+.mobile-modal-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0 0 12px 0;
+}
+.mobile-list {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  margin-bottom: 14px;
+}
+.mobile-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 13px;
+}
+.mobile-item:last-child {
+  border-bottom: none;
+}
+.mobile-data {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.mobile-tipo {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+.mobile-tipo.entrata {
+  background: #dcfce7;
+  color: #16a34a;
+}
+.mobile-tipo.uscita {
+  background: #fee2e2;
+  color: #dc2626;
+}
+.mobile-desc {
+  flex: 1;
+  font-weight: 500;
+}
+.mobile-importo {
+  font-weight: 600;
+  white-space: nowrap;
+}
