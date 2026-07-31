@@ -11,52 +11,414 @@
     <link rel="stylesheet" href="css/variables.css" />
     <link rel="stylesheet" href="css/global.css" />
     <link rel="stylesheet" href="css/sidebar.css" />
+    <link rel="stylesheet" href="css/notifications.css" />
     <style>
-      .page-wrapper {
+      .page-wrapper.impostazioni-wrap {
         overflow-y: auto;
+        align-items: stretch;
+        justify-content: flex-start;
+        text-align: left;
+        gap: 20px;
+        padding: 24px 28px 40px;
+        max-width: 860px;
+        margin: 0 auto;
+        width: 100%;
+      }
+
+      /* L'intera area di lavoro è crema: niente parti bianche ai lati */
+      body.pagina-impostazioni .main {
+        background: var(--color-bg-cream);
+      }
+
+      /* ---- TAB BAR ---- */
+      .tabs-bar {
         display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-      }
-      .placeholder-icon {
-        font-size: 80px;
-        color: var(--text-muted);
+        gap: 8px;
+        border-bottom: 1px solid #d8dfe9;
         margin-bottom: 20px;
-        opacity: 0.5;
       }
-      .placeholder-title {
-        font-size: 28px;
-        font-weight: 700;
-        color: var(--text-primary);
-        margin-bottom: 10px;
-      }
-      .placeholder-desc {
-        font-size: 16px;
-        color: var(--text-secondary);
-        max-width: 400px;
-        line-height: 1.6;
-      }
-      .placeholder-btn {
-        margin-top: 24px;
-        padding: 12px 32px;
-        background: var(--red);
-        color: white;
+      .tab-btn {
+        background: transparent;
         border: none;
-        border-radius: 30px;
-        font-size: 15px;
+        border-bottom: 3px solid transparent;
+        padding: 10px 16px;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: 0.15s;
+      }
+      .tab-btn:hover {
+        color: var(--blue);
+      }
+      .tab-btn.active {
+        color: var(--blue);
+        border-bottom-color: var(--blue);
+      }
+      .tab-panel {
+        display: none;
+      }
+      .tab-panel.active {
+        display: block;
+      }
+
+      /* ---- CARD ---- */
+      .impostazioni-card {
+        border: 1px solid #e5e9f0;
+        border-radius: 14px;
+        padding: 22px 24px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+      }
+      .impostazioni-card h3 {
+        font-size: 17px;
+        color: var(--text-primary);
+        margin-bottom: 6px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .impostazioni-card h3 i {
+        color: var(--blue);
+      }
+      .impostazioni-card .card-desc {
+        font-size: 13px;
+        color: var(--text-secondary);
+        line-height: 1.6;
+        margin-bottom: 16px;
+      }
+
+      /* ---- (password richiesta solo al momento dell'eliminazione) ---- */
+
+      /* ---- BOTTONE CERCA ---- */
+      .btn-trova {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 11px 22px;
+        background: var(--blue);
+        color: #fff;
+        border: none;
+        border-radius: 12px;
+        font-size: 14px;
         font-weight: 600;
         cursor: pointer;
         transition: 0.2s;
       }
-      .placeholder-btn:hover {
+      .btn-trova:hover:not(:disabled) {
+        background: var(--blue-hover);
+        transform: translateY(-1px);
+      }
+      .btn-trova:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+
+      /* ---- LAYOUT DUE BLOCCHI (gruppi | dettaglio) ---- */
+      .mv-layout {
+        display: flex;
+        gap: 14px;
+        margin-top: 18px;
+        align-items: stretch;
+      }
+      .mv-blocco {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        border: 1px solid #d3dbe7;
+        border-radius: 12px;
+        padding: 12px 14px;
+      }
+      .mv-blocco.gruppi {
+        flex: 0 0 40%;
+      }
+      .mv-blocco-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 8px;
+      }
+      .mv-blocco-header i {
+        color: var(--blue);
+      }
+      .dettaglio-count {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-muted);
+        background: #eef2f8;
+        border-radius: 20px;
+        padding: 2px 8px;
+        flex-shrink: 0;
+      }
+
+      /* ---- LISTA GRUPPI (sinistra) ---- */
+      .gruppi-list {
+        /* nessun limite: mostra tutte le voci */
+      }
+      .gruppo-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border-bottom: 1px solid #dfe7f2;
+        cursor: pointer;
+        transition: background 0.1s;
+        border-left: 3px solid transparent;
+      }
+      .gruppo-row:nth-child(odd) {
+        background: #e4ebf6;
+      }
+      .gruppo-row:nth-child(even) {
+        background: #ccdaee;
+      }
+      .gruppo-row:last-child {
+        border-bottom: none;
+      }
+      .gruppo-row:hover {
+        background: #b9cbe6;
+      }
+      .gruppo-row.attiva {
+        background: var(--blue-light);
+        border: 1px solid var(--blue);
+      }
+      .gruppo-nome {
+        flex: 1;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .gruppo-count {
+        font-size: 11px;
+        color: var(--text-muted);
+        flex-shrink: 0;
+      }
+      .gruppo-totale {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        flex-shrink: 0;
+      }
+      .elenco-azioni {
+        display: flex;
+        gap: 6px;
+      }
+      .link-btn {
+        background: transparent;
+        border: none;
+        color: var(--blue);
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 8px;
+      }
+      .link-btn:hover {
+        background: var(--blue-light);
+      }
+      .dettaglio-azioni {
+        justify-content: flex-end;
+        margin-top: 8px;
+      }
+
+      .mv-list {
+        /* nessun limite: mostra tutte le voci */
+      }
+      .mv-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 12px;
+        border-bottom: 1px solid #dfe7f2;
+        cursor: pointer;
+        transition: background 0.1s;
+      }
+      .mv-row:nth-child(odd) {
+        background: #e4ebf6;
+      }
+      .mv-row:nth-child(even) {
+        background: #ccdaee;
+      }
+      .mv-row:last-child {
+        border-bottom: none;
+      }
+      .mv-row:hover {
+        background: #b9cbe6;
+      }
+      .mv-row.selezionata {
+        background: var(--blue-light);
+      }
+      .mv-check {
+        accent-color: var(--blue);
+        width: 16px;
+        height: 16px;
+        cursor: pointer;
+        flex-shrink: 0;
+      }
+      .mv-tipo {
+        width: 24px;
+        text-align: center;
+        font-size: 12px;
+        flex-shrink: 0;
+      }
+      .mv-tipo.entrata {
+        color: var(--green-text);
+      }
+      .mv-tipo.uscita {
+        color: var(--red-text);
+      }
+      .mv-data {
+        min-width: 72px;
+        font-size: 12px;
+        color: var(--text-muted);
+        flex-shrink: 0;
+      }
+      .mv-desc {
+        flex: 1;
+        font-size: 13px;
+        color: var(--text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .mv-importo {
+        font-size: 13px;
+        font-weight: 600;
+        flex-shrink: 0;
+      }
+      .mv-importo.entrata {
+        color: var(--green-text);
+      }
+      .mv-importo.uscita {
+        color: var(--red-text);
+      }
+      .mv-empty {
+        padding: 28px;
+        text-align: center;
+        color: var(--text-muted);
+        font-size: 14px;
+      }
+
+      /* ---- FOOTER ELENCO ---- */
+      .elenco-footer {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 12px;
+        margin-top: 16px;
+      }
+      .elenco-footer-btns {
+        display: flex;
+        gap: 10px;
+      }
+      .btn-annulla {
+        padding: 10px 18px;
+        background: #fff;
+        border: 1px solid var(--blue-border);
+        border-radius: 10px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: 0.15s;
+      }
+      .btn-annulla:hover {
+        background: #f0f4fb;
+      }
+      .btn-cancella {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 20px;
+        background: var(--red);
+        color: #fff;
+        border: none;
+        border-radius: 10px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: 0.2s;
+      }
+      .btn-cancella:hover:not(:disabled) {
         background: var(--red-hover);
         transform: translateY(-1px);
       }
+      .btn-cancella:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      /* ---- MODALE PASSWORD ---- */
+      .pw-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: var(--notifica-overlay);
+        backdrop-filter: blur(5px);
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+      }
+      .pw-overlay.active {
+        display: flex;
+      }
+      .pw-box {
+        background: white;
+        max-width: 380px;
+        width: 90%;
+        padding: 30px 32px 26px;
+        border-radius: 24px;
+        box-shadow: var(--notifica-shadow);
+        text-align: center;
+        animation: notificaFadeIn 0.25s ease-out;
+      }
+      .pw-box .pw-icon {
+        font-size: 40px;
+        color: var(--red);
+        margin-bottom: 10px;
+        display: block;
+      }
+      .pw-box .pw-title {
+        font-size: 17px;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 6px;
+      }
+      .pw-box .pw-msg {
+        font-size: 13px;
+        color: var(--text-secondary);
+        line-height: 1.5;
+        margin-bottom: 16px;
+      }
+      .pw-box .pw-input {
+        width: 100%;
+        padding: 11px 14px;
+        border: 1px solid var(--blue-border);
+        border-radius: 10px;
+        font-size: 15px;
+        text-align: center;
+        outline: none;
+        letter-spacing: 2px;
+        transition: 0.15s;
+        margin-bottom: 16px;
+      }
+      .pw-box .pw-input:focus {
+        border-color: var(--blue);
+        box-shadow: 0 0 0 3px var(--blue-light);
+      }
+      .pw-btns {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+      }
     </style>
   </head>
-  <body>
+  <body class="pagina-impostazioni">
     <script>
       if (sessionStorage.getItem("auth") !== "true") {
         window.location.replace("login.html");
@@ -103,14 +465,102 @@
         <h2><i class="fas fa-cog"></i> Impostazioni</h2>
         <div></div>
       </div>
-      <div class="page-wrapper">
-        <div class="placeholder-icon"><i class="fas fa-wrench"></i></div>
-        <div class="placeholder-title">Impostazioni</div>
-        <div class="placeholder-desc">
-          Questa pagina è in costruzione. Presto potrai configurare le
-          preferenze dell'applicazione.
+      <div class="page-wrapper impostazioni-wrap">
+        <!-- TAB BAR -->
+        <div class="tabs-bar">
+          <button class="tab-btn active" data-tab="cancellazione">
+            <i class="fas fa-calendar-minus"></i> Cancellazione dati
+          </button>
+          <button class="tab-btn" data-tab="test">TEST</button>
+        </div>
+
+        <!-- TAB: CANCELLAZIONE DATI -->
+        <div class="tab-panel active" id="tab-cancellazione">
+          <div class="impostazioni-card">
+            <div id="contenitoreLista" hidden>
+              <div class="mv-layout">
+                <!-- BLOCO SINISTRA: gruppi per descrizione -->
+                <div class="mv-blocco gruppi">
+                  <div class="mv-blocco-header">
+                    <i class="fas fa-layer-group"></i>
+                    <span>Voci trovate</span>
+                  </div>
+                  <div class="gruppi-list" id="elencoGruppi"></div>
+                </div>
+
+                <!-- BLOCO DESTRA: dettaglio singolo -->
+                <div class="mv-blocco">
+                  <div class="mv-blocco-header" id="dettaglioHeader">
+                    <i class="fas fa-list-ul"></i>
+                    <span>Dettaglio</span>
+                  </div>
+                  <div class="mv-list" id="elencoMovimenti"></div>
+                  <div class="elenco-azioni dettaglio-azioni">
+                    <button id="btnSelezionaTutto" class="link-btn">
+                      Tutto
+                    </button>
+                    <button id="btnNessuno" class="link-btn">Nessuno</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="elenco-footer">
+                <div class="elenco-footer-btns">
+                  <button class="btn-annulla" id="btnAnnulla">Annulla</button>
+                  <button
+                    class="btn-cancella"
+                    id="btnConfermaCancella"
+                    disabled
+                  >
+                    <i class="fas fa-trash"></i> Elimina selezionate (0)
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: TEST (vuoto) -->
+        <div class="tab-panel" id="tab-test"></div>
+      </div>
+    </div>
+
+    <!-- MODALE PASSWORD -->
+    <div class="pw-overlay" id="pwModal">
+      <div class="pw-box">
+        <span class="pw-icon"><i class="fas fa-lock"></i></span>
+        <div class="pw-title">Conferma eliminazione</div>
+        <div class="pw-msg" id="pwMsg"></div>
+        <input
+          type="password"
+          class="pw-input"
+          id="pwInput"
+          placeholder="Password..."
+          autocomplete="off"
+        />
+        <div class="pw-btns">
+          <button class="btn-annulla" id="pwAnnulla">Annulla</button>
+          <button class="btn-cancella" id="pwOk">
+            <i class="fas fa-trash"></i> Elimina
+          </button>
         </div>
       </div>
     </div>
+
+    <!-- NOTIFICA PERSONALIZZATA -->
+    <div class="notifica-overlay" id="notificaModal">
+      <div class="notifica-box">
+        <span class="notifica-icon" id="notificaIcon"
+          ><i class="fas fa-exclamation-circle"></i
+        ></span>
+        <div class="notifica-msg" id="notificaMsg"></div>
+        <div class="notifica-btns" id="notificaBtns"></div>
+      </div>
+    </div>
+
+    <script src="js/utils.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/notifications.js"></script>
+    <script src="js/impostazioni.js"></script>
   </body>
 </html>

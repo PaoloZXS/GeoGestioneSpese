@@ -45,25 +45,29 @@ function showConfirm(msg) {
     `;
     notificaModal.classList.add("active");
 
-    document
-      .getElementById("notificaYesBtn")
-      .addEventListener("click", function handler() {
-        notificaModal.classList.remove("active");
-        this.removeEventListener("click", handler);
-        document
-          .getElementById("notificaNoBtn")
-          .removeEventListener("click", noHandler);
-        resolve(true);
-      });
-
-    function noHandler() {
-      notificaModal.classList.remove("active");
+    function chiudiConferma() {
       document
         .getElementById("notificaYesBtn")
-        .removeEventListener("click", handler);
-      this.removeEventListener("click", noHandler);
+        .removeEventListener("click", yesHandler);
+      document
+        .getElementById("notificaNoBtn")
+        .removeEventListener("click", noHandler);
+      notificaModal.classList.remove("active");
+    }
+
+    function yesHandler() {
+      chiudiConferma();
+      resolve(true);
+    }
+
+    function noHandler() {
+      chiudiConferma();
       resolve(false);
     }
+
+    document
+      .getElementById("notificaYesBtn")
+      .addEventListener("click", yesHandler);
     document
       .getElementById("notificaNoBtn")
       .addEventListener("click", noHandler);

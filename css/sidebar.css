@@ -2,7 +2,7 @@
    SIDEBAR STYLES
    ============================================= */
 .sidebar {
-  width: 95px;
+  width: 110px;
   background: var(--sidebar-bg);
   color: var(--sidebar-text);
   display: flex;
@@ -26,9 +26,11 @@
   flex-direction: column;
   align-items: center;
 }
-.sidebar .logo i {
-  font-size: 32px;
-  margin-bottom: 4px;
+.sidebar .logo-img {
+  width: 100px;
+  height: 100px;
+  object-fit: contain;
+  margin-bottom: 0;
 }
 .sidebar .logo span {
   font-size: 11px;
