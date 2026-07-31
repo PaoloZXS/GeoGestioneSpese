@@ -106,10 +106,22 @@
   // =============================================
 
   function aggiornaTabellaDescrizioni(year) {
-    const head = document.getElementById("descTableHead");
-    const body = document.getElementById("descTableBody");
-    const empty = document.getElementById("descTableEmpty");
-    const wrapper = document.querySelector(".desc-table-wrapper");
+    const conf = {
+      entrate: {
+        headId: "descTableHeadEntrate",
+        bodyId: "descTableBodyEntrate",
+        emptyId: "descEmptyEntrate",
+        upIsGood: true,
+        labelMetrica: "Entrate"
+      },
+      uscite: {
+        headId: "descTableHeadUscite",
+        bodyId: "descTableBodyUscite",
+        emptyId: "descEmptyUscite",
+        upIsGood: false,
+        labelMetrica: "Uscite"
+      }
+    };
 
     // Raccogli tutte le descrizioni uniche con i loro importi per mese
     const descMap = {}; // { descrizione: { tipo, [mese]: importo } }
@@ -132,41 +144,38 @@
     }
 
     const descEntries = Object.keys(descMap);
-    if (descEntries.length === 0) {
-      wrapper.style.display = "none";
-      empty.style.display = "flex";
-      return;
-    }
-    wrapper.style.display = "block";
-    empty.style.display = "none";
 
-    // Intestazione
-    head.innerHTML = `<tr>
+    // Intestazione comune
+    const headerHtml = `<tr>
       <th>Descrizione</th>
       ${MESI_ABBR.map((m) => `<th>${m}</th>`).join("")}
       <th>Totale</th>
     </tr>`;
 
-    // Corpo: separa entrate e uscite
-    body.innerHTML = "";
-    const ordine = ["entrate", "uscite"];
-    for (const tipo of ordine) {
+    for (const tipo of ["entrate", "uscite"]) {
+      const c = conf[tipo];
+      const head = document.getElementById(c.headId);
+      const body = document.getElementById(c.bodyId);
+      const empty = document.getElementById(c.emptyId);
+      const wrapper = head.closest(".desc-table-wrapper");
       const entries = descEntries
         .filter((d) => descMap[d].tipo === tipo)
         .sort();
 
-      if (entries.length === 0) continue;
+      if (entries.length === 0) {
+        wrapper.style.display = "none";
+        empty.style.display = "flex";
+        continue;
+      }
+      wrapper.style.display = "block";
+      empty.style.display = "none";
 
-      // Riga intestazione sezione
-      const sectionRow = document.createElement("tr");
-      sectionRow.className = "desc-section";
-      const sezioneLabel = tipo === "entrate" ? "▲ ENTRATE" : "▼ USCITE";
-      sectionRow.innerHTML = `<td class="td-totale" colspan="14"><strong>${sezioneLabel}</strong></td>`;
-      body.appendChild(sectionRow);
+      head.innerHTML = headerHtml;
+      body.innerHTML = "";
 
       for (const desc of entries) {
-        const row = document.createElement("tr");
         const data = descMap[desc];
+        const row = document.createElement("tr");
         let html = `<td><span class="desc-name">${desc}</span></td>`;
         let tot = 0;
         for (let m = 0; m < 12; m++) {
@@ -179,12 +188,7 @@
           let trend = "";
           if (m > 0 && val > 0) {
             const prev = data.mesi[m - 1] || 0;
-            trend = trendIcon(
-              val,
-              prev,
-              tipo === "uscite" ? false : true,
-              tipo === "uscite" ? "Uscite" : "Entrate"
-            );
+            trend = trendIcon(val, prev, c.upIsGood, c.labelMetrica);
           }
           html += `<td class="${cls}">${val > 0 ? formatEuro(val) + trend : ""}</td>`;
         }

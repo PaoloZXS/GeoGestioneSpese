@@ -92,25 +92,78 @@
   text-overflow: ellipsis;
 }
 
-/* ---- MAIN ROW (descrizione table) ---- */
-.stats-main-row {
-  display: flex;
-  gap: 6px;
-  flex: 1;
-  min-height: 0;
-}
-.stats-main-row .stats-section {
-  flex: 1;
+/* ---- BOX DESCRIZIONI (ENTRATE / USCITE separati) ---- */
+.desc-boxes {
   display: flex;
   flex-direction: column;
+  gap: 14px;
+  align-items: stretch;
+  flex: 1;
   min-height: 0;
-  overflow: hidden;
-  background: #fdf6e3;
-  border-color: #e8dcc4;
+  overflow-y: auto;
 }
-.stats-main-row .desc-table-wrapper {
-  overflow: auto;
-  max-height: 340px;
+.desc-box {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border-radius: 10px;
+  border: 1.5px solid;
+  overflow: hidden;
+}
+/* Box ENTRATE: altezza fissa (5 righe di tabella) */
+.desc-box-entrate {
+  flex: 0 0 auto;
+  background: #ecfdf5;
+  border-color: #6ee7b7;
+}
+/* Box USCITE: occupa tutto lo spazio rimanente */
+.desc-box-uscite {
+  flex: 1 1 auto;
+  min-height: 0;
+  background: #fef2f2;
+  border-color: #fca5a5;
+}
+.desc-box-head {
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.desc-box-entrate .desc-box-head {
+  color: #047857;
+  background: #a7f3d0;
+}
+.desc-box-uscite .desc-box-head {
+  color: #b91c1c;
+  background: #fecaca;
+}
+/* ENTRATE: wrapper fisso a 4 righe (altezza sempre uguale) */
+.desc-box-entrate .desc-table-wrapper {
+  overflow-y: auto;
+  height: 104px;
+  flex: none;
+  padding: 4px 6px;
+}
+/* USCITE: wrapper che occupa tutto lo spazio disponibile */
+.desc-box-uscite .desc-table-wrapper {
+  overflow-y: auto;
+  max-height: none;
+  flex: 1;
+  padding: 4px 6px;
+}
+.desc-box .desc-table {
+  background: transparent;
+}
+.desc-box .desc-table thead th {
+  background: transparent !important;
+}
+.desc-box .desc-table td:first-child,
+.desc-box .desc-table thead th:first-child {
+  background: transparent !important;
 }
 
 /* ---- BOTTOM ROW (monthly tables 6+6) ---- */
@@ -158,11 +211,19 @@
   padding: 2px 6px;
   font-size: 9px;
   background: transparent;
+  text-align: center;
+}
+.monthly-grid .stats-table thead th:first-child {
+  text-align: left;
 }
 .monthly-grid .stats-table tbody td {
   padding: 2px 6px;
   font-size: 10px;
   background: transparent;
+  text-align: center;
+}
+.monthly-grid .stats-table tbody td:first-child {
+  text-align: left;
 }
 .monthly-grid .stats-table tbody tr:hover {
   background: rgba(0, 0, 0, 0.03);
@@ -370,7 +431,7 @@
   min-width: 70px;
   position: sticky;
   left: 0;
-  background: #fdf6e3 !important;
+  background: transparent !important;
   z-index: 2;
 }
 .desc-table td {
@@ -384,19 +445,15 @@
   text-align: left;
   position: sticky;
   left: 0;
-  background: #fdf6e3;
+  background: transparent;
   z-index: 1;
 }
 .desc-table .desc-name {
   font-size: 10px;
   font-weight: 500;
 }
-.desc-table .desc-section td {
-  font-size: 10px;
-  padding: 3px 6px;
-}
 .desc-table tbody tr:hover td:first-child {
-  background: #f5edd5;
+  background: rgba(0, 0, 0, 0.05);
 }
 
 /* ---- RESPONSIVE ---- */

@@ -922,9 +922,8 @@
       try {
         await deleteSpesa(currentYear, currentGruppoMonthIdx, v.id);
         renderPlanning();
-        // Chiudi il modale e conferma l'avvenuta eliminazione
+        // Chiudi il modale (senza avviso di conferma)
         gruppoModal.classList.remove("active");
-        await showAlert(`Spesa eliminata: ${v.descrizione}`);
       } finally {
         gruppoDelBtn.disabled = false;
         gruppoDelBtn.innerHTML = htmlOriginale;

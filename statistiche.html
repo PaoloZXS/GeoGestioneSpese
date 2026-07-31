@@ -97,19 +97,39 @@
           </div>
         </div>
 
-        <!-- TABELLA DESCRIZIONI -->
-        <div class="stats-main-row">
-          <div class="stats-section stats-full">
-            <h3><i class="fas fa-list"></i> Dettaglio per descrizione</h3>
+        <!-- TABELLE DESCRIZIONI (box separati ENTRATE / USCITE) -->
+        <h3 style="font-size: 12px; font-weight: 700; margin: 2px 0 6px">
+          <i class="fas fa-list"></i> Dettaglio per descrizione
+        </h3>
+        <div class="desc-boxes">
+          <div class="desc-box desc-box-entrate">
+            <div class="desc-box-head">
+              <i class="fas fa-arrow-up"></i> ENTRATE
+            </div>
             <div class="desc-table-wrapper">
-              <table class="stats-table desc-table" id="descTable">
-                <thead id="descTableHead"></thead>
-                <tbody id="descTableBody"></tbody>
+              <table class="stats-table desc-table" id="descTableEntrate">
+                <thead id="descTableHeadEntrate"></thead>
+                <tbody id="descTableBodyEntrate"></tbody>
               </table>
             </div>
-            <div class="chart-empty" id="descTableEmpty">
+            <div class="chart-empty" id="descEmptyEntrate">
               <i class="fas fa-inbox"></i>
-              <span>Nessun dato disponibile</span>
+              <span>Nessuna entrata</span>
+            </div>
+          </div>
+          <div class="desc-box desc-box-uscite">
+            <div class="desc-box-head">
+              <i class="fas fa-arrow-down"></i> USCITE
+            </div>
+            <div class="desc-table-wrapper">
+              <table class="stats-table desc-table" id="descTableUscite">
+                <thead id="descTableHeadUscite"></thead>
+                <tbody id="descTableBodyUscite"></tbody>
+              </table>
+            </div>
+            <div class="chart-empty" id="descEmptyUscite">
+              <i class="fas fa-inbox"></i>
+              <span>Nessuna uscita</span>
             </div>
           </div>
         </div>
