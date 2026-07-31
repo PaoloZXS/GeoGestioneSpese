@@ -24,6 +24,15 @@
   const newEntrataImporto = document.getElementById("newEntrataImporto");
   const addEntrataBtn = document.getElementById("addEntrataBtn");
 
+  // Modale gruppo spese (voci aggregate)
+  const gruppoModal = document.getElementById("gruppoModal");
+  const gruppoModalTitle = document.getElementById("gruppoModalTitle");
+  const gruppoList = document.getElementById("gruppoList");
+  const gruppoEditor = document.getElementById("gruppoEditor");
+  const gruppoDelBtn = document.getElementById("gruppoDelBtn");
+  const gruppoSaveBtn = document.getElementById("gruppoSaveBtn");
+  const closeGruppoModal = document.getElementById("closeGruppoModal");
+
   // Modale modifica
   const editModal = document.getElementById("editModal");
   const editDesc = document.getElementById("editDesc");
@@ -58,6 +67,15 @@
   let currentEditExpenseId = null;
   let isAddingNewExpense = false;
   let isEditingEntrata = false;
+  let currentGruppoMonthIdx = -1;
+  let currentGruppoIds = [];
+  let currentGruppoSelectedId = null;
+  // Riferimenti ai campi dell'editor gruppo (costruiti una sola volta)
+  let gruppoEditorHint = null;
+  let gruppoDescSel = null;
+  let gruppoDataInput = null;
+  let gruppoImportoInput = null;
+  let gruppoStatoSel = null;
 
   // =============================================
   // RENDER
@@ -179,8 +197,8 @@
       empty.textContent = "Nessuna spesa";
       list.appendChild(empty);
     } else {
-      speseOrdinate.forEach((spesa) => {
-        const item = createExpenseItem(spesa, meseIndex);
+      raggruppaSpese(speseOrdinate).forEach((gruppo) => {
+        const item = createExpenseGroupItem(gruppo, meseIndex);
         list.appendChild(item);
       });
     }
@@ -196,6 +214,241 @@
     card.appendChild(totalDiv);
 
     return card;
+  }
+
+  /**
+   * Raggruppa le spese per (descrizione + stato): ogni gruppo diventa
+   * una sola riga nel planning con l'importo sommato.
+   */
+  function raggruppaSpese(spese) {
+    const mappa = new Map();
+    for (const s of spese) {
+      const key = `${s.descrizione}||${s.stato}`;
+      if (!mappa.has(key)) mappa.set(key, []);
+      mappa.get(key).push(s);
+    }
+    return Array.from(mappa.values());
+  }
+
+  /**
+   * Crea la riga per un gruppo di spese della stessa categoria/stato.
+   * Se il gruppo ha una sola voce, riusa la riga normale (editabile e
+   * trascinabile); altrimenti mostra la somma con tooltip di dettaglio.
+   */
+  function createExpenseGroupItem(gruppo, meseIndex) {
+    if (gruppo.length === 1) {
+      return createExpenseItem(gruppo[0], meseIndex);
+    }
+    const prima = gruppo[0];
+    const stato = prima.stato;
+    const totale = gruppo.reduce((s, x) => s + x.importo, 0);
+    const n = gruppo.length;
+    const statoLabel = stato.charAt(0).toUpperCase() + stato.slice(1);
+    const dataStr = formatDataBreve(prima.data);
+    const dettaglio = gruppo
+      .map((x) => `${formatDataBreve(x.data)}: ${formatEuro(x.importo)}`)
+      .join(" · ");
+
+    const div = document.createElement("div");
+    div.className = `expense-item status-${stato} merged`;
+    div.title = `${n} voci: ${dettaglio}`;
+    div.innerHTML = `
+      <span class="data-text">${dataStr}</span>
+      <span class="desc">${prima.descrizione}</span>
+      <span class="importo">${formatEuro(totale)}</span>
+      <span class="badge-stato ${stato}">${statoLabel}</span>
+    `;
+    div.addEventListener("click", function (e) {
+      openGruppoModal(
+        meseIndex,
+        gruppo.map((x) => x.id)
+      );
+    });
+    return div;
+  }
+
+  // ---- MODALE GRUPPO (dettaglio voci aggregate) ----
+
+  function openGruppoModal(monthIdx, ids) {
+    currentGruppoMonthIdx = monthIdx;
+    currentGruppoIds = ids;
+    currentGruppoSelectedId = null;
+    renderGruppoModal();
+  }
+
+  function renderGruppoModal() {
+    const all = getSpeseMese(currentYear, currentGruppoMonthIdx);
+    const voci = all.filter((s) => currentGruppoIds.includes(s.id));
+    if (voci.length === 0) {
+      gruppoModal.classList.remove("active");
+      return;
+    }
+    const prima = voci[0];
+    const statoLabel =
+      prima.stato.charAt(0).toUpperCase() + prima.stato.slice(1);
+    gruppoModalTitle.textContent = `${prima.descrizione} · ${statoLabel}`;
+
+    // Se la selezione corrente non esiste più (es. voce eliminata),
+    // azzerala: nessuna voce preselezionata, l'utente sceglie dalla lista
+    if (
+      currentGruppoSelectedId &&
+      !voci.some((v) => v.id === currentGruppoSelectedId)
+    ) {
+      currentGruppoSelectedId = null;
+    }
+
+    // ---- COLONNA SINISTRA: elenco voci ----
+    gruppoList.innerHTML = "";
+    voci.forEach((v) => {
+      const row = document.createElement("div");
+      row.className = "gruppo-item";
+      row.dataset.voceId = v.id;
+      if (v.id === currentGruppoSelectedId) row.classList.add("selected");
+      const dataStr = formatDataBreve(v.data);
+      row.innerHTML = `
+        <span class="gruppo-data">${dataStr}</span>
+        <span class="gruppo-importo">${formatEuro(v.importo)}</span>
+      `;
+      // Click: aggiorna SOLO la selezione (nessun refresh dell'intero modale)
+      row.addEventListener("click", function () {
+        currentGruppoSelectedId = v.id;
+        selezionaVoceGruppo();
+      });
+      gruppoList.appendChild(row);
+    });
+
+    // ---- COLONNA DESTRA: form della voce selezionata ----
+    if (gruppoEditor.children.length === 0) {
+      buildGruppoEditor();
+    }
+    aggiornaGruppoEditor(voci.find((v) => v.id === currentGruppoSelectedId));
+    gruppoModal.classList.add("active");
+  }
+
+  /**
+   * Aggiorna solo la riga selezionata e i valori dell'editor, senza
+   * ricostruire il modale (evita "refresh"/riposizionamento al click).
+   */
+  function selezionaVoceGruppo() {
+    // Sposta l'evidenziazione tra le righe della lista
+    gruppoList.querySelectorAll(".gruppo-item").forEach((row) => {
+      row.classList.toggle(
+        "selected",
+        row.dataset.voceId === currentGruppoSelectedId
+      );
+    });
+    // Aggiorna SOLO i valori dell'editor (struttura già costruita)
+    const all = getSpeseMese(currentYear, currentGruppoMonthIdx);
+    const voce = all.find((s) => s.id === currentGruppoSelectedId);
+    aggiornaGruppoEditor(voce);
+  }
+
+  /**
+   * Costruisce UNA SOLA VOLTA la struttura del form (hint + label + select).
+   * La struttura resta fissa: al click vengono aggiornati solo i valori.
+   */
+  function buildGruppoEditor() {
+    gruppoEditor.innerHTML = "";
+
+    // Hint (sempre presente, visibile solo senza selezione)
+    const hint = document.createElement("p");
+    hint.className = "gruppo-editor-empty";
+    hint.textContent = "Seleziona una voce a sinistra per modificarla";
+    gruppoEditor.appendChild(hint);
+    gruppoEditorHint = hint;
+
+    // Categorie per il select Descrizione
+    const categorieUscite = (getCategorie().uscite || [])
+      .slice()
+      .sort((a, b) => a.descrizione.localeCompare(b.descrizione, "it"));
+
+    // Descrizione (select)
+    const fDesc = document.createElement("div");
+    fDesc.className = "gruppo-field";
+    const descLabel = document.createElement("label");
+    descLabel.textContent = "Descrizione";
+    fDesc.appendChild(descLabel);
+    const descSel = document.createElement("select");
+    descSel.className = "gruppo-f-desc";
+    const optPlaceholder = document.createElement("option");
+    optPlaceholder.value = "";
+    optPlaceholder.textContent = "Seleziona una categoria...";
+    descSel.appendChild(optPlaceholder);
+    categorieUscite.forEach((c) => {
+      const opt = document.createElement("option");
+      opt.value = c.descrizione;
+      opt.textContent = c.descrizione;
+      descSel.appendChild(opt);
+    });
+    fDesc.appendChild(descSel);
+    gruppoDescSel = descSel;
+
+    // Data
+    const fData = document.createElement("div");
+    fData.className = "gruppo-field";
+    const dataLabel = document.createElement("label");
+    dataLabel.textContent = "Data";
+    fData.appendChild(dataLabel);
+    const dataInput = document.createElement("input");
+    dataInput.type = "date";
+    dataInput.className = "gruppo-f-data";
+    fData.appendChild(dataInput);
+    gruppoDataInput = dataInput;
+
+    // Importo
+    const fImporto = document.createElement("div");
+    fImporto.className = "gruppo-field";
+    const importoLabel = document.createElement("label");
+    importoLabel.textContent = "Importo (€)";
+    fImporto.appendChild(importoLabel);
+    const importoInput = document.createElement("input");
+    importoInput.type = "number";
+    importoInput.className = "gruppo-f-importo";
+    importoInput.step = "0.01";
+    importoInput.min = "0";
+    fImporto.appendChild(importoInput);
+    gruppoImportoInput = importoInput;
+
+    // Stato
+    const fStato = document.createElement("div");
+    fStato.className = "gruppo-field";
+    const statoLabel = document.createElement("label");
+    statoLabel.textContent = "Stato";
+    fStato.appendChild(statoLabel);
+    const statoSel = document.createElement("select");
+    statoSel.className = "gruppo-f-stato";
+    const optStatoPlaceholder = document.createElement("option");
+    optStatoPlaceholder.value = "";
+    optStatoPlaceholder.textContent = "Seleziona stato...";
+    statoSel.appendChild(optStatoPlaceholder);
+    ["eseguita", "preventivata", "scaduta"].forEach((s) => {
+      const opt = document.createElement("option");
+      opt.value = s;
+      opt.textContent = s.charAt(0).toUpperCase() + s.slice(1);
+      statoSel.appendChild(opt);
+    });
+    fStato.appendChild(statoSel);
+    gruppoStatoSel = statoSel;
+
+    gruppoEditor.appendChild(fDesc);
+    gruppoEditor.appendChild(fData);
+    gruppoEditor.appendChild(fImporto);
+    gruppoEditor.appendChild(fStato);
+  }
+
+  /**
+   * Aggiorna i valori dell'editor e la visibilità dell'hint senza ricostruire.
+   */
+  function aggiornaGruppoEditor(v) {
+    if (gruppoEditorHint) {
+      gruppoEditorHint.style.visibility = v ? "hidden" : "visible";
+    }
+    if (gruppoDescSel) gruppoDescSel.value = v ? v.descrizione : "";
+    if (gruppoDataInput) gruppoDataInput.value = v ? v.data : "";
+    if (gruppoImportoInput) gruppoImportoInput.value = v ? v.importo : "";
+    if (gruppoStatoSel) gruppoStatoSel.value = v ? v.stato : "";
+    gruppoDelBtn.disabled = !v;
+    gruppoSaveBtn.disabled = !v;
   }
 
   function createExpenseItem(spesa, meseIndex) {
@@ -595,6 +848,88 @@
   });
   entrateModal.addEventListener("click", function (e) {
     if (e.target === entrateModal) entrateModal.classList.remove("active");
+  });
+  // Modale gruppo
+  closeGruppoModal.addEventListener("click", function () {
+    gruppoModal.classList.remove("active");
+  });
+  gruppoModal.addEventListener("click", function (e) {
+    if (e.target === gruppoModal) gruppoModal.classList.remove("active");
+  });
+
+  // Salva modifiche della voce selezionata nel modale gruppo
+  gruppoSaveBtn.addEventListener("click", async function () {
+    if (!currentGruppoSelectedId) return;
+    const descSel = gruppoEditor.querySelector(".gruppo-f-desc");
+    const dataInput = gruppoEditor.querySelector(".gruppo-f-data");
+    const importoInput = gruppoEditor.querySelector(".gruppo-f-importo");
+    const statoSel = gruppoEditor.querySelector(".gruppo-f-stato");
+    if (!descSel || !dataInput || !importoInput || !statoSel) return;
+
+    const nuovaDesc = descSel.value.trim() || "Senza descrizione";
+    const nuovaData = dataInput.value;
+    const nuovoImporto = parseFloat(importoInput.value);
+    if (!nuovaData) {
+      await showAlert("Inserire una data");
+      return;
+    }
+    if (isNaN(nuovoImporto) || nuovoImporto <= 0) {
+      await showAlert("Inserire un importo valido");
+      return;
+    }
+
+    // Mostra spinner e disabilita il pulsante durante il salvataggio
+    const htmlOriginale = gruppoSaveBtn.innerHTML;
+    gruppoSaveBtn.disabled = true;
+    gruppoSaveBtn.innerHTML =
+      '<i class="fas fa-spinner fa-spin"></i> Salvataggio...';
+    try {
+      await updateSpesa(
+        currentYear,
+        currentGruppoMonthIdx,
+        currentGruppoSelectedId,
+        {
+          descrizione: nuovaDesc,
+          importo: nuovoImporto,
+          data: nuovaData,
+          stato: statoSel.value
+        }
+      );
+      renderPlanning();
+      // Chiudi il modale (senza avviso di conferma)
+      gruppoModal.classList.remove("active");
+    } finally {
+      gruppoSaveBtn.disabled = false;
+      gruppoSaveBtn.innerHTML = htmlOriginale;
+    }
+  });
+
+  // Elimina la voce selezionata nel modale gruppo
+  gruppoDelBtn.addEventListener("click", async function () {
+    if (!currentGruppoSelectedId) return;
+    const all = getSpeseMese(currentYear, currentGruppoMonthIdx);
+    const v = all.find((s) => s.id === currentGruppoSelectedId);
+    if (!v) return;
+    const confirmed = await showConfirm(
+      `Eliminare "${v.descrizione}" (${formatEuro(v.importo)})?`
+    );
+    if (confirmed) {
+      // Mostra spinner e disabilita il pulsante durante l'eliminazione
+      const htmlOriginale = gruppoDelBtn.innerHTML;
+      gruppoDelBtn.disabled = true;
+      gruppoDelBtn.innerHTML =
+        '<i class="fas fa-spinner fa-spin"></i> Eliminazione...';
+      try {
+        await deleteSpesa(currentYear, currentGruppoMonthIdx, v.id);
+        renderPlanning();
+        // Chiudi il modale e conferma l'avvenuta eliminazione
+        gruppoModal.classList.remove("active");
+        await showAlert(`Spesa eliminata: ${v.descrizione}`);
+      } finally {
+        gruppoDelBtn.disabled = false;
+        gruppoDelBtn.innerHTML = htmlOriginale;
+      }
+    }
   });
   addEntrataBtn.addEventListener("click", aggiungiEntrataManuale);
   newEntrataImporto.addEventListener("keypress", function (e) {

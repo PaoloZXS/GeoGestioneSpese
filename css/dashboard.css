@@ -182,6 +182,11 @@
   border-color: rgba(255, 255, 255, 0.5);
 }
 
+/* Riga aggregata (più voci stessa categoria/stato): tooltip con dettaglio */
+.expense-item.merged {
+  cursor: help;
+}
+
 .expense-item.status-eseguita {
   border-left-color: var(--green);
 }
