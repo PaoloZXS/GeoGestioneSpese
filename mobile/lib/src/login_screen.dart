@@ -70,7 +70,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     decoration: const InputDecoration(
                       labelText: 'Utente',
                       prefixIcon: Icon(Icons.person),
-                      filled: true,
                     ),
                   ),
                   const SizedBox(height: 16),

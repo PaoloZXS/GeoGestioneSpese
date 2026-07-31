@@ -48,8 +48,15 @@ class _InsertScreenState extends State<InsertScreen> {
           .eq('tipo', tipo)
           .order('descrizione');
       if (!mounted) return;
+      // Ordine alfabetico garantito (indipendente dalla collation del DB)
+      final lista = rows.cast<Map<String, dynamic>>();
+      lista.sort(
+        (a, b) => (a['descrizione'] as String).toLowerCase().compareTo(
+          (b['descrizione'] as String).toLowerCase(),
+        ),
+      );
       setState(() {
-        _categorie = rows.cast<Map<String, dynamic>>();
+        _categorie = lista;
         _caricandoCategorie = false;
       });
     } catch (e) {
@@ -163,22 +170,10 @@ class _InsertScreenState extends State<InsertScreen> {
         child: ListView(
           children: [
             // ---- TIPO (entrata / uscita) ----
-            SegmentedButton<bool>(
-              segments: const [
-                ButtonSegment(
-                  value: false,
-                  label: Text('Uscita'),
-                  icon: Icon(Icons.arrow_downward),
-                ),
-                ButtonSegment(
-                  value: true,
-                  label: Text('Entrata'),
-                  icon: Icon(Icons.arrow_upward),
-                ),
-              ],
-              selected: {_isEntrata},
-              onSelectionChanged: (sel) {
-                setState(() => _isEntrata = sel.first);
+            _TipoSegmented(
+              isEntrata: _isEntrata,
+              onChanged: (v) {
+                setState(() => _isEntrata = v);
                 _caricaCategorie();
               },
             ),
@@ -248,6 +243,66 @@ class _InsertScreenState extends State<InsertScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Selettore Tipo (Uscita = rosso, Entrata = verde).
+class _TipoSegmented extends StatelessWidget {
+  const _TipoSegmented({required this.isEntrata, required this.onChanged});
+
+  final bool isEntrata;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      padding: const EdgeInsets.all(4),
+      child: Row(
+        children: [
+          Expanded(child: _buildButton(false)),
+          const SizedBox(width: 4),
+          Expanded(child: _buildButton(true)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildButton(bool entrata) {
+    final selected = isEntrata == entrata;
+    final color = entrata ? Colors.green.shade600 : Colors.red.shade600;
+    return Material(
+      color: selected ? color : Colors.transparent,
+      borderRadius: BorderRadius.circular(9),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(9),
+        onTap: () => onChanged(entrata),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                entrata ? Icons.arrow_upward : Icons.arrow_downward,
+                size: 18,
+                color: selected ? Colors.white : color,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                entrata ? 'Entrata' : 'Uscita',
+                style: TextStyle(
+                  color: selected ? Colors.white : color,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
