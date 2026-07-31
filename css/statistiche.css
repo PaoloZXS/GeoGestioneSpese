@@ -1,0 +1,356 @@
+/* =============================================
+   STATISTICHE / REPORT — Styles
+   ============================================= */
+
+.stats-page {
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  text-align: left !important;
+  gap: 6px;
+  padding: 6px 14px 6px 14px !important;
+}
+
+/* ---- SUMMARY CARDS ---- */
+.stats-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  flex-shrink: 0;
+}
+.stat-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: white;
+  border-radius: 10px;
+  padding: 8px 12px;
+  border: 1.5px solid #e2e8f0;
+}
+.stat-card .stat-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.stat-card.total-entrate {
+  background: #dcfce7;
+  border-color: #86efac;
+}
+.stat-card.total-entrate .stat-icon {
+  background: rgba(34, 197, 94, 0.15);
+  color: #16a34a;
+}
+.stat-card.total-uscite {
+  background: #fee2e2;
+  border-color: #fca5a5;
+}
+.stat-card.total-uscite .stat-icon {
+  background: rgba(239, 68, 68, 0.15);
+  color: #dc2626;
+}
+.stat-card.saldo {
+  background: #dcfce7;
+  border-color: #86efac;
+}
+.stat-card.saldo.negative {
+  background: #fee2e2;
+  border-color: #fca5a5;
+}
+.stat-card.saldo .stat-icon {
+  background: rgba(34, 197, 94, 0.15);
+  color: #16a34a;
+}
+.stat-card.saldo.negative .stat-icon {
+  background: rgba(239, 68, 68, 0.15);
+  color: #dc2626;
+}
+.stat-card .stat-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+}
+.stat-card .stat-label {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.2px;
+}
+.stat-card .stat-value {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---- MAIN ROW (descrizione table) ---- */
+.stats-main-row {
+  display: flex;
+  gap: 6px;
+  flex: 1;
+  min-height: 0;
+}
+.stats-main-row .stats-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  background: #fdf6e3;
+  border-color: #e8dcc4;
+}
+.stats-main-row .desc-table-wrapper {
+  overflow: auto;
+  max-height: 340px;
+}
+
+/* ---- BOTTOM ROW (monthly tables 6+6) ---- */
+.stats-bottom-row {
+  flex-shrink: 0;
+  margin-top: auto;
+}
+.stats-bottom-row h3 {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.stats-bottom-row h3 i {
+  color: var(--blue);
+  font-size: 13px;
+}
+.monthly-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.monthly-grid .table-wrapper {
+  overflow: hidden;
+  max-height: none;
+  border-radius: 10px;
+  border: 1.5px solid #e2e8f0;
+  padding: 4px 6px;
+}
+.monthly-grid .table-wrapper:first-child,
+.monthly-grid .table-wrapper:last-child {
+  background: #dbeafe;
+  border-color: #93c5fd;
+}
+.monthly-grid .stats-table {
+  font-size: 11px;
+}
+.monthly-grid .stats-table {
+  background: transparent;
+}
+.monthly-grid .stats-table thead th {
+  padding: 2px 6px;
+  font-size: 9px;
+  background: transparent;
+}
+.monthly-grid .stats-table tbody td {
+  padding: 2px 6px;
+  font-size: 10px;
+  background: transparent;
+}
+.monthly-grid .stats-table tbody tr:hover {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+/* ---- SECTIONS ---- */
+.stats-section {
+  background: white;
+  border-radius: 10px;
+  border: 1.5px solid #e2e8f0;
+  padding: 10px 12px;
+}
+.stats-section h3 {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+.stats-section h3 i {
+  color: var(--blue);
+  font-size: 13px;
+}
+
+/* ---- DISTRIBUZIONE ---- */
+.distribuzione-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow-y: auto;
+  flex: 1;
+}
+.distribuzione-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+.distribuzione-item .distr-color {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.distribuzione-item .distr-label {
+  flex: 0 0 auto;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-primary);
+  max-width: 70px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.distribuzione-item .distr-bar-wrapper {
+  flex: 1;
+  height: 5px;
+  background: #eef2f6;
+  border-radius: 3px;
+  overflow: hidden;
+  min-width: 20px;
+}
+.distribuzione-item .distr-bar {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s;
+}
+.distribuzione-item .distr-val {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  min-width: 42px;
+  text-align: right;
+}
+
+/* ---- TABELLA ---- */
+.table-wrapper {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+.stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+.stats-table thead th {
+  text-align: left;
+  padding: 3px 6px;
+  font-weight: 600;
+  font-size: 9px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.2px;
+  border-bottom: 2px solid #e2e8f0;
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  background: white;
+}
+.stats-table tbody td {
+  padding: 3px 6px;
+  border-bottom: 1px solid #f1f5f9;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+.stats-table tbody tr:hover {
+  background: #f8fafc;
+}
+.stats-table .td-positive {
+  color: #16a34a;
+  font-weight: 600;
+}
+.stats-table .td-negative {
+  color: #dc2626;
+  font-weight: 600;
+}
+.stats-table .td-totale {
+  font-weight: 700;
+  border-top: 2px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+/* ---- TABELLA DESCRIZIONI (pivot) ---- */
+.desc-table-wrapper {
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+}
+.desc-table thead th {
+  font-size: 9px;
+  padding: 2px 4px;
+  text-align: center;
+  min-width: 32px;
+  background: transparent !important;
+}
+.desc-table thead th:first-child {
+  text-align: left;
+  min-width: 70px;
+  position: sticky;
+  left: 0;
+  background: #fdf6e3 !important;
+  z-index: 2;
+}
+.desc-table td {
+  font-size: 10px;
+  padding: 2px 4px;
+  text-align: center;
+  white-space: nowrap;
+  background: transparent;
+}
+.desc-table td:first-child {
+  text-align: left;
+  position: sticky;
+  left: 0;
+  background: #fdf6e3;
+  z-index: 1;
+}
+.desc-table .desc-name {
+  font-size: 10px;
+  font-weight: 500;
+}
+.desc-table .desc-section td {
+  font-size: 10px;
+  padding: 3px 6px;
+}
+.desc-table tbody tr:hover td:first-child {
+  background: #f5edd5;
+}
+
+/* ---- RESPONSIVE ---- */
+@media (max-width: 800px) {
+  .stats-main-row {
+    flex-direction: column;
+  }
+  .stats-page {
+    overflow-y: auto !important;
+  }
+}
+@media (max-width: 500px) {
+  .stats-summary {
+    grid-template-columns: 1fr;
+  }
+  .stat-card .stat-value {
+    font-size: 17px;
+  }
+}

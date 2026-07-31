@@ -61,61 +61,63 @@
 .modal-box.modifica {
   max-width: 440px;
   min-height: auto;
-  padding: 24px 26px;
+  padding: 18px 22px 20px;
 }
 .modal-box.modifica h3 {
   justify-content: flex-start;
   gap: 10px;
+  font-size: 20px;
+  margin-bottom: 14px;
 }
 .modal-box.modifica label {
   font-weight: 500;
-  font-size: 13px;
+  font-size: 12px;
   color: #334155;
   display: block;
-  margin: 12px 0 4px;
+  margin: 8px 0 3px;
 }
 .modal-box.modifica input,
 .modal-box.modifica select {
   width: 100%;
-  padding: 10px 12px;
-  border-radius: 16px;
+  padding: 8px 12px;
+  border-radius: 12px;
   border: 1px solid var(--input-border);
-  font-size: 14px;
+  font-size: 13px;
 }
 
 /* ---- SEZIONE NUOVO IMPORTO (per nuove spese) ---- */
 #editNewImportoSection {
-  margin: 8px 0;
+  margin: 4px 0;
 }
 
 /* ---- SEZIONE AGGIUNTA IMPORTI (per spese esistenti) ---- */
 #editImportiSection {
-  margin: 8px 0;
-  padding: 12px 14px;
+  margin: 4px 0;
+  padding: 10px 12px;
   background: #f8fafc;
-  border-radius: 14px;
+  border-radius: 12px;
   border: 1px solid #e2e8f0;
 }
 
 .importo-attuale-display {
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--text-primary);
-  padding: 6px 0;
+  padding: 4px 0;
   text-align: center;
   background: white;
-  border-radius: 12px;
+  border-radius: 10px;
   border: 1px solid #e2e8f0;
 }
 
 .importo-totale-display {
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--blue);
-  padding: 6px 0;
+  padding: 4px 0;
   text-align: center;
   background: #eff6ff;
-  border-radius: 12px;
+  border-radius: 10px;
   border: 1px solid #bfdbfe;
 }
 
@@ -123,7 +125,7 @@
   border-color: #93c5fd;
   background: #fafcff;
   font-weight: 600;
-  font-size: 16px;
+  font-size: 14px;
 }
 .modal-box.modifica #editAddImporto:focus {
   border-color: var(--blue);
@@ -133,26 +135,28 @@
 
 /* ---- SEZIONE RICORRENTE (modale modifica) ---- */
 #editRicorrenteSection {
-  margin: 4px 0;
+  margin: 2px 0;
 }
 .ricorrente-actions {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  flex-direction: row;
+  gap: 6px;
 }
 .ricorrente-actions .ric-btn {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
-  border-radius: 10px;
+  justify-content: center;
+  gap: 4px;
+  padding: 5px 8px;
+  border-radius: 8px;
   border: 1px solid transparent;
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 600;
   cursor: pointer;
   transition: 0.1s;
-  width: 100%;
-  text-align: left;
+  flex: 1;
+  text-align: center;
+  white-space: nowrap;
 }
 .ricorrente-actions .ric-btn.ric-this {
   background: #fef3c7;
@@ -253,15 +257,16 @@
 
 .modal-box.modifica .btn-row {
   display: flex;
-  gap: 12px;
-  margin-top: 24px;
+  gap: 8px;
+  margin-top: 16px;
   justify-content: flex-end;
 }
 .modal-box.modifica .btn-row button {
-  padding: 8px 20px;
-  border-radius: 30px;
+  padding: 7px 16px;
+  border-radius: 24px;
   border: none;
   font-weight: 600;
+  font-size: 12px;
   cursor: pointer;
 }
 .modal-box.modifica .btn-row .save-btn {

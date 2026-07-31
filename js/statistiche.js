@@ -1,0 +1,264 @@
+/* =============================================
+   STATISTICHE / REPORT — Grafici e tabelle
+   ============================================= */
+
+(function () {
+  "use strict";
+
+  let currentYear = getCurrentYear();
+  // Grafico rimosso (non utilizzato)
+
+  // ---- REFERENCES DOM ----
+  const annoLabel = document.getElementById("annoLabel");
+  const prevYearBtn = document.getElementById("prevYearBtn");
+  const nextYearBtn = document.getElementById("nextYearBtn");
+  const statTotEntrate = document.getElementById("statTotEntrate");
+  const statTotUscite = document.getElementById("statTotUscite");
+  const statSaldo = document.getElementById("statSaldo");
+  const statsTableBodySx = document.getElementById("statsTableBodySx");
+  const statsTableBodyDx = document.getElementById("statsTableBodyDx");
+
+  // =============================================
+  // COLORI PALETTE
+  // =============================================
+  const COLORS = [
+    "#3b82f6",
+    "#ef4444",
+    "#22c55e",
+    "#f59e0b",
+    "#8b5cf6",
+    "#ec4899",
+    "#14b8a6",
+    "#f97316",
+    "#6366f1",
+    "#84cc16",
+    "#06b6d4",
+    "#d946ef",
+    "#eab308",
+    "#64748b"
+  ];
+
+  // =============================================
+  // RACCOLTA DATI
+  // =============================================
+
+  function raccogliDati(year) {
+    const entrateMensili = [];
+    const usciteMensili = [];
+    let totEntrate = 0,
+      totUscite = 0,
+      totVoci = 0;
+    const categorieMap = {};
+
+    for (let m = 0; m < 12; m++) {
+      const entrate = getEntrateMese(year, m);
+      const spese = getSpeseMese(year, m);
+
+      const sumEntrate = entrate.reduce((s, e) => s + e.importo, 0);
+      const sumUscite = spese.reduce((s, e) => s + e.importo, 0);
+
+      entrateMensili.push(sumEntrate);
+      usciteMensili.push(sumUscite);
+      totEntrate += sumEntrate;
+      totUscite += sumUscite;
+      totVoci += entrate.length + spese.length;
+
+      // Raggruppa uscite per categoria
+      for (const s of spese) {
+        if (!categorieMap[s.descrizione]) {
+          categorieMap[s.descrizione] = 0;
+        }
+        categorieMap[s.descrizione] += s.importo;
+      }
+    }
+
+    return {
+      entrateMensili,
+      usciteMensili,
+      totEntrate,
+      totUscite,
+      saldo: totEntrate - totUscite,
+      totVoci,
+      categorieMap
+    };
+  }
+
+  // =============================================
+  // CARD RIEPILOGO
+  // =============================================
+
+  function aggiornaRiepilogo(dati) {
+    statTotEntrate.textContent = formatEuro(dati.totEntrate);
+    statTotUscite.textContent = formatEuro(dati.totUscite);
+    statSaldo.textContent = formatEuro(dati.saldo);
+    statSaldo.style.color = dati.saldo >= 0 ? "#16a34a" : "#dc2626";
+    // Aggiorna anche la card saldo
+    const saldoCard = statSaldo.closest(".stat-card");
+    if (saldoCard) {
+      saldoCard.classList.toggle("negative", dati.saldo < 0);
+    }
+  }
+
+  // =============================================
+  // GRAFICO ANDAMENTO MENSILE
+  // =============================================
+  // TABELLA DETTAGLIO PER DESCRIZIONE (pivot)
+  // =============================================
+
+  function aggiornaTabellaDescrizioni(year) {
+    const head = document.getElementById("descTableHead");
+    const body = document.getElementById("descTableBody");
+    const empty = document.getElementById("descTableEmpty");
+    const wrapper = document.querySelector(".desc-table-wrapper");
+
+    // Raccogli tutte le descrizioni uniche con i loro importi per mese
+    const descMap = {}; // { descrizione: { tipo, [mese]: importo } }
+
+    for (let m = 0; m < 12; m++) {
+      const entrate = getEntrateMese(year, m);
+      for (const e of entrate) {
+        if (!descMap[e.descrizione])
+          descMap[e.descrizione] = { tipo: "entrate", mesi: {} };
+        descMap[e.descrizione].mesi[m] =
+          (descMap[e.descrizione].mesi[m] || 0) + e.importo;
+      }
+      const spese = getSpeseMese(year, m);
+      for (const s of spese) {
+        if (!descMap[s.descrizione])
+          descMap[s.descrizione] = { tipo: "uscite", mesi: {} };
+        descMap[s.descrizione].mesi[m] =
+          (descMap[s.descrizione].mesi[m] || 0) + s.importo;
+      }
+    }
+
+    const descEntries = Object.keys(descMap);
+    if (descEntries.length === 0) {
+      wrapper.style.display = "none";
+      empty.style.display = "flex";
+      return;
+    }
+    wrapper.style.display = "block";
+    empty.style.display = "none";
+
+    // Intestazione
+    head.innerHTML = `<tr>
+      <th>Descrizione</th>
+      ${MESI_ABBR.map((m) => `<th>${m}</th>`).join("")}
+      <th>Totale</th>
+    </tr>`;
+
+    // Corpo: separa entrate e uscite
+    body.innerHTML = "";
+    const ordine = ["entrate", "uscite"];
+    for (const tipo of ordine) {
+      const entries = descEntries
+        .filter((d) => descMap[d].tipo === tipo)
+        .sort();
+
+      if (entries.length === 0) continue;
+
+      // Riga intestazione sezione
+      const sectionRow = document.createElement("tr");
+      sectionRow.className = "desc-section";
+      const sezioneLabel = tipo === "entrate" ? "▲ ENTRATE" : "▼ USCITE";
+      sectionRow.innerHTML = `<td class="td-totale" colspan="14"><strong>${sezioneLabel}</strong></td>`;
+      body.appendChild(sectionRow);
+
+      for (const desc of entries) {
+        const row = document.createElement("tr");
+        const data = descMap[desc];
+        let html = `<td><span class="desc-name">${desc}</span></td>`;
+        let tot = 0;
+        for (let m = 0; m < 12; m++) {
+          const val = data.mesi[m] || 0;
+          tot += val;
+          const cls =
+            val > 0 ? (tipo === "entrate" ? "td-positive" : "td-negative") : "";
+          html += `<td class="${cls}">${val > 0 ? formatEuro(val) : "-"}</td>`;
+        }
+        const totCls = tipo === "entrate" ? "td-positive" : "td-negative";
+        html += `<td class="${totCls}"><strong>${formatEuro(tot)}</strong></td>`;
+        row.innerHTML = html;
+        body.appendChild(row);
+      }
+    }
+  }
+
+  // =============================================
+  // TABELLA DETTAGLIO MENSILE
+  // =============================================
+
+  function aggiornaTabella(dati) {
+    statsTableBodySx.innerHTML = "";
+    statsTableBodyDx.innerHTML = "";
+
+    for (let m = 0; m < 6; m++) {
+      const e = dati.entrateMensili[m];
+      const u = dati.usciteMensili[m];
+      const saldo = e - u;
+      const saldoClass = saldo >= 0 ? "td-positive" : "td-negative";
+      statsTableBodySx.innerHTML += `
+        <tr>
+          <td><strong>${MESI[m]}</strong></td>
+          <td class="td-positive">${formatEuro(e)}</td>
+          <td class="td-negative">${formatEuro(u)}</td>
+          <td class="${saldoClass}">${formatEuro(saldo)}</td>
+        </tr>`;
+    }
+
+    for (let m = 6; m < 12; m++) {
+      const e = dati.entrateMensili[m];
+      const u = dati.usciteMensili[m];
+      const saldo = e - u;
+      const saldoClass = saldo >= 0 ? "td-positive" : "td-negative";
+      statsTableBodyDx.innerHTML += `
+        <tr>
+          <td><strong>${MESI[m]}</strong></td>
+          <td class="td-positive">${formatEuro(e)}</td>
+          <td class="td-negative">${formatEuro(u)}</td>
+          <td class="${saldoClass}">${formatEuro(saldo)}</td>
+        </tr>`;
+    }
+  }
+
+  // =============================================
+  // RENDER COMPLETO
+  // =============================================
+
+  function renderReport() {
+    try {
+      const dati = raccogliDati(currentYear);
+      aggiornaRiepilogo(dati);
+      aggiornaTabellaDescrizioni(currentYear);
+      aggiornaTabella(dati);
+      annoLabel.textContent = currentYear;
+    } catch (e) {
+      console.warn("Report render error:", e.message);
+    }
+  }
+
+  // =============================================
+  // NAVIGAZIONE ANNO
+  // =============================================
+
+  function changeYear(delta) {
+    currentYear += delta;
+    setCurrentYear(currentYear);
+    renderReport();
+  }
+
+  prevYearBtn.addEventListener("click", () => changeYear(-1));
+  nextYearBtn.addEventListener("click", () => changeYear(1));
+
+  // =============================================
+  // INIT
+  // =============================================
+
+  // Esponi renderReport globalmente per l'init in HTML
+  window._renderReportStats = renderReport;
+  window._currentYearStats = currentYear;
+  window._changeYearStats = changeYear;
+
+  // Ri-render quando arrivano dati da Supabase (consistente con le altre pagine)
+  window.addEventListener("dataReady", renderReport);
+})();

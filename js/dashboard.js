@@ -121,22 +121,35 @@
     const totaleEntrate = entrate.reduce((sum, e) => sum + e.importo, 0);
 
     const bilancio = totaleEntrate - totaleUscite;
-    const isNegative = bilancio < 0;
-    const iconClass = isNegative ? "fa-arrow-down" : "fa-arrow-up";
-    const negClass = isNegative ? " negative" : "";
+    const isZeroEntrate = totaleEntrate === 0;
+    const isNegative = bilancio < 0 && !isZeroEntrate;
+
+    let iconClass, extraClass;
+    if (isZeroEntrate) {
+      iconClass = "fa-equals";
+      extraClass = " zero";
+    } else if (isNegative) {
+      iconClass = "fa-equals";
+      extraClass = " negative";
+    } else {
+      iconClass = "fa-arrow-up";
+      extraClass = "";
+    }
 
     // Header
     const header = document.createElement("div");
     header.className = "month-header";
     header.innerHTML = `
       <span class="month-title">
-        Prospetto mese di: ${MESI[meseIndex]}
+        <span class="month-title-text">Mese di: ${MESI[meseIndex]}</span>
+      </span>
+      <span class="month-header-right">
+        <span class="total-entrate${extraClass}" data-month="${meseIndex}">
+          <i class="fas ${iconClass}"></i> Entrate: ${formatEuro(totaleEntrate)}
+        </span>
         <button class="add-expense-btn" data-month="${meseIndex}" title="Nuova spesa">
           <i class="fas fa-plus-circle"></i>
         </button>
-      </span>
-      <span class="total-entrate${negClass}" data-month="${meseIndex}">
-        <i class="fas ${iconClass}"></i> Entrate: ${formatEuro(totaleEntrate)}
       </span>
     `;
 
@@ -270,6 +283,11 @@
   function renderEntrateList() {
     const entrate = getEntrateMese(currentYear, currentEntrateMonth);
     entrateList.innerHTML = "";
+    const totale = entrate.reduce((sum, e) => sum + e.importo, 0);
+    document.getElementById("entrateTotalVal").textContent = formatEuro(totale);
+    document.getElementById("entrateTotalBar").style.display =
+      entrate.length > 0 ? "flex" : "none";
+
     if (entrate.length === 0) {
       entrateList.innerHTML =
         '<div class="empty-entrate">Nessuna entrata registrata</div>';

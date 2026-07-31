@@ -55,6 +55,35 @@ let _ricorrentiCache = null;
 // CARICAMENTO INIZIALE DA SUPABASE
 // =============================================
 
+// =============================================
+// CARICAMENTO DA data.json (fallback locale)
+// =============================================
+
+function caricaDaJson(dati) {
+  // --- Spese ---
+  _speseCache = {};
+  if (dati.spese) {
+    for (const anno of Object.keys(dati.spese)) {
+      _speseCache[anno] = JSON.parse(dati.spese[anno]);
+    }
+  }
+  // --- Entrate ---
+  _entrateCache = {};
+  if (dati.entrate) {
+    for (const anno of Object.keys(dati.entrate)) {
+      _entrateCache[anno] = JSON.parse(dati.entrate[anno]);
+    }
+  }
+  // --- Categorie ---
+  _categorieCache = dati.categorie
+    ? JSON.parse(dati.categorie)
+    : getDefaultCategorie();
+  // --- Ricorrenti ---
+  _ricorrentiCache = dati.ricorrenti
+    ? JSON.parse(dati.ricorrenti)
+    : getDefaultRicorrenti();
+}
+
 async function caricaDaSupabase() {
   try {
     const [spese, entrate, categorie, ricorrenti] = await Promise.all([
@@ -99,6 +128,24 @@ async function caricaDaSupabase() {
       });
     }
 
+    // --- Auto-scadenza: spese con data passata diventano "scaduta" ---
+    const oggi = new Date();
+    oggi.setHours(0, 0, 0, 0);
+    for (const year of Object.keys(_speseCache)) {
+      for (let m = 0; m < 12; m++) {
+        const lista = _speseCache[year][m];
+        if (!lista) continue;
+        for (const s of lista) {
+          if (s.stato === "preventivata") {
+            const dataSpesa = new Date(s.data + "T00:00:00");
+            if (dataSpesa < oggi) {
+              s.stato = "scaduta";
+            }
+          }
+        }
+      }
+    }
+
     // --- Categorie ---
     _categorieCache = { entrate: [], uscite: [] };
     for (const c of categorie) {
@@ -115,6 +162,7 @@ async function caricaDaSupabase() {
         id: r.id,
         descrizione: r.descrizione,
         importo: r.importo,
+        giorno: r.giorno || 1,
         dataInizio: r.data_inizio,
         dataFine: r.data_fine
       });
@@ -126,7 +174,21 @@ async function caricaDaSupabase() {
     return true;
   } catch (e) {
     console.warn("❌ Supabase non disponibile:", e.message);
-    // Fallback: dati vuoti, l'app mostra comunque le UI
+    // Fallback: carica da data.json
+    try {
+      const resp = await fetch("/api/load");
+      if (resp.ok) {
+        const dati = await resp.json();
+        caricaDaJson(dati);
+        console.log("✅ Dati caricati da data.json (fallback)");
+        _cacheReady = true;
+        window.dispatchEvent(new CustomEvent("dataReady"));
+        return true;
+      }
+    } catch (e2) {
+      console.warn("Fallback data.json fallito:", e2.message);
+    }
+    // Fallback estremo: dati vuoti
     _speseCache = {};
     _entrateCache = {};
     _categorieCache = getDefaultCategorie();
@@ -172,6 +234,7 @@ function getDefaultRicorrenti() {
         id: generaId("ric-e"),
         descrizione: "Stipendio",
         importo: 2500,
+        giorno: 1,
         dataInizio: "2026-01",
         dataFine: "2026-12"
       },
@@ -179,6 +242,7 @@ function getDefaultRicorrenti() {
         id: generaId("ric-e"),
         descrizione: "Bonus",
         importo: 500,
+        giorno: 1,
         dataInizio: "2026-03",
         dataFine: "2026-12"
       }
@@ -188,6 +252,7 @@ function getDefaultRicorrenti() {
         id: generaId("ric-u"),
         descrizione: "Affitto",
         importo: 800,
+        giorno: 1,
         dataInizio: "2026-01",
         dataFine: "2026-12"
       },
@@ -195,6 +260,7 @@ function getDefaultRicorrenti() {
         id: generaId("ric-u"),
         descrizione: "Internet",
         importo: 40,
+        giorno: 1,
         dataInizio: "2026-01",
         dataFine: "2026-12"
       },
@@ -202,6 +268,7 @@ function getDefaultRicorrenti() {
         id: generaId("ric-u"),
         descrizione: "Assicurazione",
         importo: 120,
+        giorno: 1,
         dataInizio: "2026-01",
         dataFine: "2026-12"
       }
@@ -438,9 +505,21 @@ async function deleteRicorrente(tipo, idx) {
 }
 
 /**
+ * Calcola il giorno valido per un mese: se il giorno richiesto supera
+ * il numero massimo di giorni del mese, scala all'indietro all'ultimo
+ * giorno valido (es. 31 → 30 per aprile, 31 → 28/29 per febbraio).
+ */
+function calcolaDataFineMese(year, month, giorno) {
+  const lastDay = new Date(year, month + 1, 0).getDate();
+  const day = Math.min(giorno, lastDay);
+  return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+/**
  * Applica i ricorrenti all'anno corrente, creando/aggiornando spese/entrate.
- * Accumula tutte le modifiche in memoria e le salva su Supabase in un'unica
- * chiamata per tipo (spese/entrate), per evitare race condition e sync multipli.
+ * Prima rimuove TUTTE le vecchie spese/entrate collegate a ricorrenti (ricId),
+ * poi rigenera tutto da capo. Accumula le modifiche e le salva su Supabase
+ * in un'unica chiamata per tipo, per evitare race condition e sync multipli.
  */
 async function applicaRicorrenti(year) {
   const ric = getRicorrenti();
@@ -449,8 +528,22 @@ async function applicaRicorrenti(year) {
   const speseAggiornate = getSpese(year);
   const entrateAggiornate = getEntrate(year);
 
+  // --- Rimuovi vecchie voci collegate a ricorrenti (solo se non eseguite) ---
+  for (let m = 0; m < 12; m++) {
+    if (speseAggiornate[m]) {
+      speseAggiornate[m] = speseAggiornate[m].filter(
+        (s) => !s.ricId || s.stato === "eseguita"
+      );
+    }
+    if (entrateAggiornate[m]) {
+      entrateAggiornate[m] = entrateAggiornate[m].filter((e) => !e.ricId);
+    }
+  }
+
+  // --- Rigenera da capo ---
   for (const tipo of ["entrate", "uscite"]) {
     for (const r of ric[tipo]) {
+      const giorno = r.giorno || 1;
       const inizio = new Date(r.dataInizio + "-01T00:00:00");
       const fine = new Date(r.dataFine + "-01T00:00:00");
       const firstMonth = inizio.getFullYear() === year ? inizio.getMonth() : 0;
@@ -459,47 +552,27 @@ async function applicaRicorrenti(year) {
       for (let m = firstMonth; m <= lastMonth; m++) {
         const meseDate = new Date(year, m, 1);
         if (meseDate < inizio || meseDate > fine) continue;
-        const dataStr = `${year}-${String(m + 1).padStart(2, "0")}-01`;
+        const dataStr = calcolaDataFineMese(year, m, giorno);
 
         if (tipo === "uscite") {
           if (!speseAggiornate[m]) speseAggiornate[m] = [];
-          const esistente = speseAggiornate[m].find(
-            (s) => s.descrizione === r.descrizione && s.data === dataStr
-          );
-          if (esistente) {
-            esistente.ricId = r.id;
-            if (esistente.importo !== r.importo) {
-              esistente.importo = r.importo;
-            }
-          } else {
-            speseAggiornate[m].push({
-              id: generaId("spesa"),
-              data: dataStr,
-              descrizione: r.descrizione,
-              importo: r.importo,
-              stato: "preventivata",
-              ricId: r.id
-            });
-          }
+          speseAggiornate[m].push({
+            id: generaId("spesa"),
+            data: dataStr,
+            descrizione: r.descrizione,
+            importo: r.importo,
+            stato: "preventivata",
+            ricId: r.id
+          });
         } else {
           if (!entrateAggiornate[m]) entrateAggiornate[m] = [];
-          const esistente = entrateAggiornate[m].find(
-            (e) => e.descrizione === r.descrizione && e.data === dataStr
-          );
-          if (esistente) {
-            esistente.ricId = r.id;
-            if (esistente.importo !== r.importo) {
-              esistente.importo = r.importo;
-            }
-          } else {
-            entrateAggiornate[m].push({
-              id: generaId("entrata"),
-              data: dataStr,
-              descrizione: r.descrizione,
-              importo: r.importo,
-              ricId: r.id
-            });
-          }
+          entrateAggiornate[m].push({
+            id: generaId("entrata"),
+            data: dataStr,
+            descrizione: r.descrizione,
+            importo: r.importo,
+            ricId: r.id
+          });
         }
       }
     }
@@ -625,6 +698,7 @@ async function syncRicorrentiSupabase(ric) {
           tipo: "entrate",
           descrizione: r.descrizione,
           importo: r.importo,
+          giorno: r.giorno || 1,
           data_inizio: r.dataInizio,
           data_fine: r.dataFine
         }
@@ -637,6 +711,7 @@ async function syncRicorrentiSupabase(ric) {
           tipo: "uscite",
           descrizione: r.descrizione,
           importo: r.importo,
+          giorno: r.giorno || 1,
           data_inizio: r.dataInizio,
           data_fine: r.dataFine
         }

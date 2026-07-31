@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS ricorrenti (
   tipo TEXT NOT NULL CHECK (tipo IN ('entrate', 'uscite')),
   descrizione TEXT NOT NULL,
   importo NUMERIC NOT NULL,
+  giorno INTEGER DEFAULT 1,
   data_inizio TEXT NOT NULL,
   data_fine TEXT NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()

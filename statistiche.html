@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Statistiche · Gestione Spese</title>
+    <title>Report · Gestione Spese</title>
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
@@ -11,37 +11,14 @@
     <link rel="stylesheet" href="css/variables.css" />
     <link rel="stylesheet" href="css/global.css" />
     <link rel="stylesheet" href="css/sidebar.css" />
-    <style>
-      .page-wrapper {
-        overflow-y: auto;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-      }
-      .placeholder-icon {
-        font-size: 80px;
-        color: var(--text-muted);
-        margin-bottom: 20px;
-        opacity: 0.5;
-      }
-      .placeholder-title {
-        font-size: 28px;
-        font-weight: 700;
-        color: var(--text-primary);
-        margin-bottom: 10px;
-      }
-      .placeholder-desc {
-        font-size: 16px;
-        color: var(--text-secondary);
-        max-width: 400px;
-        line-height: 1.6;
-      }
-    </style>
+    <link rel="stylesheet" href="css/statistiche.css" />
   </head>
   <body>
-    <script>if(sessionStorage.getItem("auth")!=="true"){window.location.replace("login.html")}</script>
+    <script>
+      if (sessionStorage.getItem("auth") !== "true") {
+        window.location.replace("login.html");
+      }
+    </script>
     <!-- SIDEBAR -->
     <aside class="sidebar">
       <div class="logo">
@@ -49,30 +26,29 @@
         <span>spese</span>
       </div>
       <nav>
-        <a  onclick="location.href = 'index.html'"
+        <a onclick="location.href = 'index.html'"
           ><i class="fas fa-home"></i> Planning</a
         >
-        <a
-          
-          onclick="location.href = 'programmazione.html'"
+        <a onclick="location.href = 'programmazione.html'"
           ><i class="fas fa-redo"></i> Ricorrenti</a
         >
-        <a
-          
-          class="active"
-          onclick="location.href = 'statistiche.html'"
+        <a class="active" onclick="location.href = 'statistiche.html'"
           ><i class="fas fa-chart-pie"></i> Report</a
         >
-        <a  onclick="location.href = 'categorie.html'"
+        <a onclick="location.href = 'categorie.html'"
           ><i class="fas fa-tag"></i> Categorie</a
         >
-        <a
-          
-          onclick="location.href = 'impostazioni.html'"
-          ><i class="fas fa-cog"></i> Impostazioni</a>
+        <a onclick="location.href = 'impostazioni.html'"
+          ><i class="fas fa-cog"></i> Impostazioni</a
+        >
       </nav>
       <div class="bottom">
-        <a href="#" onclick="sessionStorage.clear();window.location.replace('login.html')"
+        <a
+          href="#"
+          onclick="
+            sessionStorage.clear();
+            window.location.replace('login.html');
+          "
           ><i class="fas fa-sign-out-alt"></i> Esci</a
         >
       </div>
@@ -81,17 +57,124 @@
     <!-- MAIN -->
     <div class="main">
       <div class="top-bar">
-        <h2><i class="fas fa-chart-pie"></i> Statistiche</h2>
-        <div></div>
+        <h2><i class="fas fa-chart-pie"></i> Report annuale</h2>
+        <div class="anno-controls">
+          <button id="prevYearBtn"><i class="fas fa-chevron-left"></i></button>
+          <span class="anno-label" id="annoLabel">2026</span>
+          <button id="nextYearBtn"><i class="fas fa-chevron-right"></i></button>
+        </div>
       </div>
-      <div class="page-wrapper">
-        <div class="placeholder-icon"><i class="fas fa-chart-bar"></i></div>
-        <div class="placeholder-title">Statistiche</div>
-        <div class="placeholder-desc">
-          Questa pagina Ã¨ in costruzione. Presto potrai vedere grafici e
-          statistiche sulle tue entrate e uscite annuali.
+      <div class="page-wrapper stats-page">
+        <!-- CARD RIEPILOGO -->
+        <div class="stats-summary">
+          <div class="stat-card total-entrate">
+            <div class="stat-icon"><i class="fas fa-arrow-up"></i></div>
+            <div class="stat-info">
+              <span class="stat-label">Totale Entrate</span>
+              <span class="stat-value" id="statTotEntrate">€ 0,00</span>
+            </div>
+          </div>
+          <div class="stat-card total-uscite">
+            <div class="stat-icon"><i class="fas fa-arrow-down"></i></div>
+            <div class="stat-info">
+              <span class="stat-label">Totale Uscite</span>
+              <span class="stat-value" id="statTotUscite">€ 0,00</span>
+            </div>
+          </div>
+          <div class="stat-card saldo">
+            <div class="stat-icon"><i class="fas fa-wallet"></i></div>
+            <div class="stat-info">
+              <span class="stat-label">Saldo Annuo</span>
+              <span class="stat-value" id="statSaldo">€ 0,00</span>
+            </div>
+          </div>
+          <div class="stat-card voci" style="display: none">
+            <div class="stat-icon"><i class="fas fa-receipt"></i></div>
+            <div class="stat-info">
+              <span class="stat-label">Voci totali</span>
+              <span class="stat-value" id="statVoci">0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- TABELLA DESCRIZIONI -->
+        <div class="stats-main-row">
+          <div class="stats-section stats-full">
+            <h3><i class="fas fa-list"></i> Dettaglio per descrizione</h3>
+            <div class="desc-table-wrapper">
+              <table class="stats-table desc-table" id="descTable">
+                <thead id="descTableHead"></thead>
+                <tbody id="descTableBody"></tbody>
+              </table>
+            </div>
+            <div class="chart-empty" id="descTableEmpty">
+              <i class="fas fa-inbox"></i>
+              <span>Nessun dato disponibile</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- TABELLE DETTAGLIO MENSILE (6+6 mesi) -->
+        <div class="stats-bottom-row">
+          <h3><i class="fas fa-table"></i> Dettaglio mensile</h3>
+          <div class="monthly-grid">
+            <div class="table-wrapper">
+              <table class="stats-table" id="statsTableSx">
+                <thead>
+                  <tr>
+                    <th>Mese</th>
+                    <th>Entrate</th>
+                    <th>Uscite</th>
+                    <th>Saldo</th>
+                  </tr>
+                </thead>
+                <tbody id="statsTableBodySx"></tbody>
+              </table>
+            </div>
+            <div class="table-wrapper">
+              <table class="stats-table" id="statsTableDx">
+                <thead>
+                  <tr>
+                    <th>Mese</th>
+                    <th>Entrate</th>
+                    <th>Uscite</th>
+                    <th>Saldo</th>
+                  </tr>
+                </thead>
+                <tbody id="statsTableBodyDx"></tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
     </div>
+
+    <!-- NOTIFICA PERSONALIZZATA -->
+    <div class="notifica-overlay" id="notificaModal">
+      <div class="notifica-box">
+        <span class="notifica-icon" id="notificaIcon"
+          ><i class="fas fa-exclamation-circle"></i
+        ></span>
+        <div class="notifica-msg" id="notificaMsg"></div>
+        <div class="notifica-btns" id="notificaBtns"></div>
+      </div>
+    </div>
+
+    <script src="js/utils.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/notifications.js"></script>
+    <script src="js/statistiche.js"></script>
+    <script>
+      window.addEventListener("load", function avviaReport() {
+        if (typeof getSpeseMese === "undefined" || !window._renderReportStats) {
+          setTimeout(avviaReport, 300);
+          return;
+        }
+        window._renderReportStats();
+      });
+      window.addEventListener("dataReady", function () {
+        if (window._renderReportStats) window._renderReportStats();
+      });
+    </script>
   </body>
 </html>

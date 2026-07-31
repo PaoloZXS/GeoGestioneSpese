@@ -71,6 +71,16 @@
   font-weight: 600;
   font-size: 14px;
   color: var(--text-primary);
+  min-width: 0;
+}
+.month-header .month-title .month-title-text {
+  white-space: nowrap;
+}
+.month-header .month-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 .month-header .total-entrate {
   font-weight: 600;
@@ -95,6 +105,14 @@
 }
 .month-header .total-entrate.negative:hover {
   background: rgba(239, 68, 68, 0.2);
+}
+.month-header .total-entrate.zero {
+  color: var(--blue);
+  background: var(--blue-light);
+  border-color: var(--blue-border);
+}
+.month-header .total-entrate.zero:hover {
+  background: rgba(59, 130, 246, 0.25);
 }
 .month-header .total-entrate i {
   margin-right: 4px;
@@ -280,96 +298,164 @@
   background: rgba(59, 130, 246, 0.1);
 }
 
-/* ---- MODALE ENTRATE ---- */
+/* ---- MODALE ENTRATE (compatto) ---- */
+#entrateModal .modal-box {
+  max-width: 520px;
+  min-height: auto;
+  padding: 24px 28px 28px;
+}
+#entrateModal .modal-box h3 {
+  font-size: 20px;
+  margin-bottom: 16px;
+}
+#entrateModal .modal-box h3 i {
+  font-size: 22px;
+}
+#entrateModal .separator {
+  margin: 8px 0 16px;
+}
+
 .entrate-list {
   flex: 1;
   overflow-y: auto;
-  margin-bottom: 20px;
-  max-height: 420px;
-  min-height: 150px;
-  padding-right: 6px;
+  margin-bottom: 16px;
+  max-height: 320px;
+  min-height: 80px;
+  padding: 8px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 4px;
+  background: #f0fdf4;
+  border: 2px solid #bbf7d0;
+  border-radius: 14px;
+}
+.entrate-list:empty,
+.entrate-list:has(.empty-entrate) {
+  justify-content: center;
+  align-items: center;
 }
 .entrate-list .entrata-item {
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 18px;
-  padding: 16px 20px;
-  background: #f9fafc;
-  border-radius: var(--radius-lg);
-  border: 1px solid #eef2f6;
-  font-size: 16px;
-  transition:
-    background 0.15s,
-    box-shadow 0.15s;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  gap: 8px;
+  padding: 6px 10px;
+  background: #d4f0d4;
+  border-radius: 0;
+  border: none;
+  font-size: 13px;
+  flex-shrink: 0;
+  min-height: 32px;
+  transition: background 0.1s;
+}
+.entrate-list .entrata-item:first-child {
+  border-radius: 6px 6px 0 0;
+}
+.entrate-list .entrata-item:last-child {
+  border-radius: 0 0 6px 6px;
+}
+.entrate-list .entrata-item:only-child {
+  border-radius: 6px;
+}
+.entrate-list .entrata-item:nth-child(odd) {
+  background: #e2f7e2;
 }
 .entrate-list .entrata-item:hover {
-  background: #f0f4fa;
-  box-shadow: var(--shadow-md);
-  border-color: #d1d9e6;
+  background: #c8eac8;
 }
 .entrate-list .entrata-item .entrata-data {
-  font-size: 14px;
+  font-size: 11px;
   color: var(--sidebar-bottom-text);
   font-weight: 500;
-  background: #eef2f6;
-  padding: 4px 14px;
-  border-radius: 30px;
+  background: transparent;
+  padding: 0 4px 0 0;
   white-space: nowrap;
+  line-height: 1.4;
 }
 .entrate-list .entrata-item .entrata-desc {
   font-weight: 600;
   color: var(--text-primary);
-  font-size: 16px;
+  font-size: 13px;
 }
 .entrate-list .entrata-item .entrata-importo {
   font-weight: 700;
   color: var(--green-text);
   text-align: right;
-  font-size: 19px;
-  background: rgba(34, 197, 94, 0.08);
-  padding: 6px 18px;
-  border-radius: 30px;
+  font-size: 13px;
+  background: transparent;
+  padding: 0;
   white-space: nowrap;
+  line-height: 1.4;
 }
+/* ---- TOTALE ENTRATE (barra sotto la lista) ---- */
+.entrate-total-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 12px;
+  margin-bottom: 12px;
+  background: #dcfce7;
+  border: 1.5px solid #bbf7d0;
+  border-radius: 10px;
+}
+.entrate-total-bar .entrate-total-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--green-dark);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.entrate-total-bar .entrate-total-val {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--green-text);
+}
+
 .entrate-list .empty-entrate {
   color: var(--text-muted);
   text-align: center;
-  padding: 50px 0;
+  padding: 28px 0;
   font-style: italic;
-  font-size: 16px;
-  background: #f9fafc;
-  border-radius: var(--radius-lg);
-  border: 1px dashed #d1d9e6;
+  font-size: 14px;
+  background: transparent;
+  border-radius: 6px;
+  border: 1.5px dashed #bbf7d0;
+  width: 100%;
 }
 
-/* ---- FORM ENTRATE ---- */
+/* ---- FORM ENTRATE (2 righe) ---- */
 .add-entrata-form {
-  display: grid;
-  grid-template-columns: 180px 1fr 150px auto;
-  gap: 18px;
-  align-items: end;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   padding-top: 4px;
 }
+.add-entrata-form .form-row {
+  display: flex;
+  gap: 12px;
+  align-items: end;
+}
+.add-entrata-form .form-row .field-group {
+  flex: 0 0 auto;
+}
+.add-entrata-form .form-row .field-group.grow {
+  flex: 1 1 auto;
+  min-width: 0;
+}
 .add-entrata-form .field-group label {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text-secondary);
   display: block;
-  margin-bottom: 6px;
-  letter-spacing: 0.2px;
+  margin-bottom: 4px;
 }
 .add-entrata-form .field-group input,
 .add-entrata-form .field-group select {
   width: 100%;
-  padding: 12px 16px;
-  border-radius: var(--radius-lg);
+  padding: 10px 14px;
+  border-radius: 12px;
   border: 1.5px solid var(--input-border);
-  font-size: 15px;
+  font-size: 14px;
   background: var(--input-bg);
   transition:
     border-color 0.2s,
@@ -382,33 +468,40 @@
   box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.12);
   background: white;
 }
+.add-entrata-form .field-group input[type="date"] {
+  min-width: 155px;
+}
+.add-entrata-form .field-group input[type="number"] {
+  min-width: 140px;
+}
 .add-entrata-form .btn-add {
   background: var(--green);
   color: white;
   border: none;
-  padding: 12px 28px;
-  border-radius: var(--radius-lg);
+  padding: 10px 24px;
+  border-radius: 12px;
   font-weight: 700;
-  font-size: 15px;
+  font-size: 14px;
   cursor: pointer;
   transition: 0.2s;
-  height: 48px;
+  height: 42px;
   white-space: nowrap;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
+  flex: 0 0 auto;
 }
 .add-entrata-form .btn-add:hover {
   background: var(--green-hover);
   transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(34, 197, 94, 0.25);
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.25);
 }
 .add-entrata-form .btn-add:active {
   transform: translateY(0);
 }
 .add-entrata-form .btn-add i {
-  font-size: 14px;
+  font-size: 13px;
 }
 
 /* ---- RESPONSIVE DASHBOARD ---- */
@@ -455,10 +548,6 @@
     font-size: 17px;
     padding: 5px 14px;
   }
-  .add-entrata-form {
-    grid-template-columns: 140px 1fr 120px auto;
-    gap: 14px;
-  }
 }
 @media (max-width: 900px) {
   .row-months {
@@ -485,20 +574,6 @@
     font-size: 15px;
     padding: 4px 12px;
   }
-  .add-entrata-form {
-    grid-template-columns: 120px 1fr 100px auto;
-    gap: 10px;
-  }
-  .add-entrata-form .field-group input,
-  .add-entrata-form .field-group select {
-    font-size: 14px;
-    padding: 10px 14px;
-  }
-  .add-entrata-form .btn-add {
-    font-size: 14px;
-    padding: 10px 18px;
-    height: 44px;
-  }
 }
 @media (max-width: 500px) {
   .row-months {
@@ -507,36 +582,44 @@
   .planning-grid {
     grid-template-rows: repeat(12, 1fr);
   }
+  #entrateModal .modal-box {
+    padding: 20px 18px 24px;
+  }
+  .entrate-list {
+    padding: 8px 8px 4px;
+    max-height: 260px;
+    min-height: 60px;
+  }
   .entrate-list .entrata-item {
     grid-template-columns: 1fr 1fr;
     gap: 6px;
-    padding: 12px 12px;
+    padding: 8px 10px;
     font-size: 13px;
-    border-radius: var(--radius-md);
+    border-radius: 8px;
   }
   .entrate-list .entrata-item .entrata-data {
     grid-column: span 2;
     justify-self: start;
-    font-size: 12px;
-    padding: 3px 10px;
+    font-size: 11px;
+    padding: 2px 10px;
   }
   .entrate-list .entrata-item .entrata-importo {
     text-align: right;
     font-size: 14px;
     padding: 4px 10px;
   }
-  .add-entrata-form {
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
+  .add-entrata-form .form-row {
+    flex-wrap: wrap;
   }
-  .add-entrata-form .field-group input,
-  .add-entrata-form .field-group select {
-    padding: 10px 12px;
-    font-size: 14px;
+  .add-entrata-form .form-row .field-group {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .add-entrata-form .field-group input[type="date"],
+  .add-entrata-form .field-group input[type="number"] {
+    min-width: 0;
   }
   .add-entrata-form .btn-add {
-    grid-column: span 2;
-    height: 42px;
-    font-size: 14px;
+    width: 100%;
   }
 }

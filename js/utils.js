@@ -44,12 +44,13 @@ function formatDataBreve(dataISO) {
  * Formatta un numero come valuta Euro.
  */
 function formatEuro(valore) {
+  // Usa Intl.NumberFormat per avere controllo esplicito sul separatore migliaia
   return (
-    "€ " +
-    valore.toLocaleString("it-IT", {
+    new Intl.NumberFormat("it-IT", {
       minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    })
+      maximumFractionDigits: 2,
+      useGrouping: true
+    }).format(valore) + " €."
   );
 }
 

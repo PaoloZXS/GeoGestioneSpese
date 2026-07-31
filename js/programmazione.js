@@ -15,7 +15,18 @@
   const cancelRicBtn = document.getElementById("cancelRicBtn");
   const deleteRicBtn = document.getElementById("deleteRicBtn");
   const ricImporto = document.getElementById("ricImporto");
+  const ricGiorno = document.getElementById("ricGiorno");
   const applyRicBtn = document.getElementById("applyRicBtn");
+  const spinnerOverlay = document.getElementById("spinnerOverlay");
+  const spinnerMsg = document.getElementById("spinnerMsg");
+
+  function showSpinner(msg) {
+    spinnerMsg.textContent = msg;
+    spinnerOverlay.classList.add("active");
+  }
+  function hideSpinner() {
+    spinnerOverlay.classList.remove("active");
+  }
 
   let editingTipo = null;
   let editingIdx = -1;
@@ -48,14 +59,42 @@
         " → " +
         formatPeriodoBreve(ric.dataFine);
 
+      // Verifica se questa ricorrente è già stata applicata al planning
+      let statoBadge = "";
+      const year = getCurrentYear();
+      if (tipo === "uscite") {
+        const spese = getSpese(year);
+        const applicata = spese.some((mese) =>
+          mese.some((s) => s.ricId === ric.id)
+        );
+        statoBadge = applicata
+          ? '<span class="ric-stato applicata"><i class="fas fa-check-circle"></i> Applicata</span>'
+          : '<span class="ric-stato nuova"><i class="fas fa-plus-circle"></i> Nuova</span>';
+      } else {
+        const entrate = getEntrate(year);
+        const applicata = entrate.some((mese) =>
+          mese.some((e) => e.ricId === ric.id)
+        );
+        statoBadge = applicata
+          ? '<span class="ric-stato applicata"><i class="fas fa-check-circle"></i> Applicata</span>'
+          : '<span class="ric-stato nuova"><i class="fas fa-plus-circle"></i> Nuova</span>';
+      }
+
       item.innerHTML = `
         <span class="ric-desc">${ric.descrizione}</span>
         <span class="ric-importo">${formatEuro(ric.importo)}</span>
         <span class="ric-periodo">${periodo}</span>
+        ${statoBadge}
       `;
 
       // Click sulla riga -> carica nei campi per modifica/elimina
       const avviaModifica = function () {
+        // Evidenzia la riga selezionata (deseleziona tutte le altre in entrambe le liste)
+        document.querySelectorAll(".ricorrente-item").forEach((el) => {
+          el.classList.remove("selected");
+        });
+        item.classList.add("selected");
+
         editingTipo = tipo;
         editingIdx = idx;
         // Imposta tipo SENZA triggerare l'evento change
@@ -79,10 +118,12 @@
         }
         ricDesc.value = ric.descrizione;
         ricImporto.value = ric.importo;
+        ricGiorno.value = ric.giorno || 1;
         ricDataInizio.value = ric.dataInizio;
         ricDataFine.value = ric.dataFine;
         aggiornaTipoForm();
-        addRicorrenteBtn.innerHTML = '<i class="fas fa-save"></i> Aggiorna';
+        addRicorrenteBtn.innerHTML =
+          '<i class="fas fa-save"></i> Salva Ricorrente';
         cancelRicBtn.style.display = "";
         deleteRicBtn.style.display = "";
         ricDesc.focus();
@@ -101,11 +142,12 @@
   function annullaModifica() {
     editingTipo = null;
     editingIdx = -1;
-    addRicorrenteBtn.innerHTML = '<i class="fas fa-plus"></i> Aggiungi';
+    addRicorrenteBtn.innerHTML = '<i class="fas fa-save"></i> Salva Ricorrente';
     cancelRicBtn.style.display = "none";
     deleteRicBtn.style.display = "none";
     ricDesc.value = "";
     ricImporto.value = "";
+    ricGiorno.value = "1";
     const year = getCurrentYear();
     ricDataInizio.value = year + "-01";
     ricDataFine.value = year + "-12";
@@ -118,6 +160,7 @@
     const desc = ricDesc.value.trim();
     const importo = parseFloat(ricImporto.value);
     const tipo = ricTipo.value;
+    const giorno = parseInt(ricGiorno.value) || 1;
     const dataInizio = ricDataInizio.value;
     const dataFine = ricDataFine.value;
 
@@ -127,6 +170,10 @@
     }
     if (isNaN(importo) || importo <= 0) {
       await showAlert("Inserire un importo valido");
+      return;
+    }
+    if (giorno < 1 || giorno > 31) {
+      await showAlert("Il giorno deve essere tra 1 e 31");
       return;
     }
     if (!dataInizio) {
@@ -142,11 +189,14 @@
       return;
     }
 
+    showSpinner("Salvataggio in corso...");
+
     if (editingTipo && editingIdx >= 0) {
       // MODIFICA: aggiorna ricorrente esistente
       await updateRicorrente(editingTipo, editingIdx, {
         descrizione: desc,
         importo: importo,
+        giorno: giorno,
         dataInizio: dataInizio,
         dataFine: dataFine
       });
@@ -157,12 +207,19 @@
         id: generaId("ric-" + (tipo === "entrate" ? "e" : "u")),
         descrizione: desc,
         importo: importo,
+        giorno: giorno,
         dataInizio: dataInizio,
         dataFine: dataFine
       });
       ricDesc.value = "";
       ricImporto.value = "";
+      ricGiorno.value = "1";
     }
+
+    // Applica subito al planning
+    await applicaRicorrenti(getCurrentYear());
+
+    hideSpinner();
 
     renderRicorrenti();
     ricDesc.focus();
@@ -188,17 +245,6 @@
       opt.textContent = cat.descrizione;
       ricDesc.appendChild(opt);
     });
-  }
-
-  // =============================================
-  // APPLY
-  // =============================================
-
-  async function applicaESalva() {
-    const year = getCurrentYear();
-    await applicaRicorrenti(year);
-    // Redirect alla dashboard
-    window.location.href = "index.html";
   }
 
   // =============================================
@@ -238,12 +284,17 @@
       `Eliminare "${item.descrizione}" dalle voci programmate?`
     );
     if (confirmed) {
+      showSpinner("Eliminazione in corso...");
       await deleteRicorrente(editingTipo, editingIdx);
+      // Rigenera il planning senza la ricorrente eliminata
+      await applicaRicorrenti(getCurrentYear());
       annullaModifica();
       renderRicorrenti();
+      hideSpinner();
     }
   });
-  applyRicBtn.addEventListener("click", applicaESalva);
+  // applyRicBtn non più usato — l'applicazione è automatica su ogni Salva/Elimina
+  applyRicBtn.style.display = "none";
 
   // Ri-render quando arrivano dati da Supabase
   window.addEventListener("dataReady", function () {

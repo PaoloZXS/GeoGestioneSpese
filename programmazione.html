@@ -33,7 +33,11 @@
     </style>
   </head>
   <body>
-    <script>if(sessionStorage.getItem("auth")!=="true"){window.location.replace("login.html")}</script>
+    <script>
+      if (sessionStorage.getItem("auth") !== "true") {
+        window.location.replace("login.html");
+      }
+    </script>
     <!-- SIDEBAR -->
     <aside class="sidebar">
       <div class="logo">
@@ -58,7 +62,12 @@
         >
       </nav>
       <div class="bottom">
-        <a href="#" onclick="sessionStorage.clear();window.location.replace('login.html')"
+        <a
+          href="#"
+          onclick="
+            sessionStorage.clear();
+            window.location.replace('login.html');
+          "
           ><i class="fas fa-sign-out-alt"></i> Esci</a
         >
       </div>
@@ -99,6 +108,17 @@
             />
           </div>
           <div class="field-group">
+            <label>Giorno</label>
+            <input
+              type="number"
+              id="ricGiorno"
+              value="1"
+              min="1"
+              max="31"
+              step="1"
+            />
+          </div>
+          <div class="field-group">
             <label>Da (mese/anno)</label>
             <input type="month" id="ricDataInizio" />
           </div>
@@ -108,7 +128,7 @@
           </div>
           <div class="btn-ric-group">
             <button class="btn-add-ric" id="addRicorrenteBtn">
-              <i class="fas fa-plus"></i> Aggiungi
+              <i class="fas fa-save"></i> Salva Ricorrente
             </button>
             <button
               class="btn-cancel-ric"
@@ -132,12 +152,14 @@
           <div class="programmazione-column entrate">
             <h4>
               <i class="fas fa-arrow-up" style="color: #16a34a"></i> Entrate
+              Ricorrenti inserite
             </h4>
             <div class="ricorrenti-list" id="ricListEntrate"></div>
           </div>
           <div class="programmazione-column uscite">
             <h4>
               <i class="fas fa-arrow-down" style="color: #dc2626"></i> Uscite
+              Ricorrenti inserite
             </h4>
             <div class="ricorrenti-list" id="ricListUscite"></div>
           </div>
@@ -160,10 +182,18 @@
             "
             ><i class="fas fa-arrow-left"></i> Planning</a
           >
-          <button class="btn-apply" id="applyRicBtn">
+          <button class="btn-apply" id="applyRicBtn" style="display: none">
             <i class="fas fa-check"></i> Salva e applica
           </button>
         </div>
+      </div>
+    </div>
+
+    <!-- SPINNER CARICAMENTO -->
+    <div class="spinner-overlay" id="spinnerOverlay">
+      <div class="spinner">
+        <i class="fas fa-spinner fa-pulse"></i>
+        <span id="spinnerMsg">Salvataggio in corso...</span>
       </div>
     </div>
 
