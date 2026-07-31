@@ -290,6 +290,68 @@
   background: #f8fafc;
 }
 
+/* ---- INDICATORI DI TENDENZA (confronto col mese precedente) ---- */
+/* La freccia indica l'andamento del bilancio:
+   ▲ verde = migliorato, ▼ rossa = peggiorato, = grigia = invariato. */
+.stats-table .trend-icon {
+  margin-left: 3px;
+  font-size: 9px;
+  vertical-align: middle;
+  opacity: 0.9;
+}
+.stats-table .trend-good {
+  color: #16a34a;
+}
+.stats-table .trend-bad {
+  color: #dc2626;
+}
+.stats-table .trend-eq {
+  color: #94a3b8;
+}
+
+/* ---- LEGENDA TENDENZA ---- */
+.trend-legend {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  font-size: 9px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+.trend-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.trend-legend .trend-icon {
+  margin-left: 0;
+}
+.trend-legend .trend-good {
+  color: #16a34a;
+}
+.trend-legend .trend-bad {
+  color: #dc2626;
+}
+.trend-legend .trend-eq {
+  color: #94a3b8;
+}
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.legend-dot.dot-good {
+  background: #16a34a;
+}
+.legend-dot.dot-bad {
+  background: #dc2626;
+}
+.legend-dot.dot-eq {
+  background: #94a3b8;
+}
+
 /* ---- TABELLA DESCRIZIONI (pivot) ---- */
 .desc-table-wrapper {
   overflow: auto;

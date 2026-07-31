@@ -174,7 +174,19 @@
           tot += val;
           const cls =
             val > 0 ? (tipo === "entrate" ? "td-positive" : "td-negative") : "";
-          html += `<td class="${cls}">${val > 0 ? formatEuro(val) : "-"}</td>`;
+          // Indicatore di tendenza rispetto al mese precedente della stessa descrizione.
+          // Se il mese non ha valore, il campo resta vuoto (senza cifre né simboli).
+          let trend = "";
+          if (m > 0 && val > 0) {
+            const prev = data.mesi[m - 1] || 0;
+            trend = trendIcon(
+              val,
+              prev,
+              tipo === "uscite" ? false : true,
+              tipo === "uscite" ? "Uscite" : "Entrate"
+            );
+          }
+          html += `<td class="${cls}">${val > 0 ? formatEuro(val) + trend : ""}</td>`;
         }
         const totCls = tipo === "entrate" ? "td-positive" : "td-negative";
         html += `<td class="${totCls}"><strong>${formatEuro(tot)}</strong></td>`;
@@ -188,37 +200,70 @@
   // TABELLA DETTAGLIO MENSILE
   // =============================================
 
+  /**
+   * Icona di tendenza rispetto al mese precedente.
+   * cur = valore mese corrente, prev = valore mese precedente.
+   * upIsGood = true se per quella colonna un aumento è positivo
+   *   (entrate, saldo); false per le uscite (dove una diminuzione è positiva).
+   * La freccia indica l'ANDAMENTO del bilancio: ▲ verde = migliorato,
+   * ▼ rossa = peggiorato, = grigia = invariato. Nessuna ambiguità:
+   * verde è sempre su, rosso è sempre giù.
+   * Se prev è null (primo mese senza riferimento) non mostra nulla.
+   */
+  function trendIcon(cur, prev, upIsGood, metric) {
+    if (prev === null || prev === undefined) return "";
+    if (cur === prev) {
+      return ` <i class="fas fa-equals trend-icon trend-eq" title="${metric}: invariato"></i>`;
+    }
+    const migliorato = upIsGood ? cur > prev : cur < prev;
+    const inAumento = cur > prev;
+    const icona = migliorato ? "fa-arrow-up" : "fa-arrow-down";
+    const color = migliorato ? "trend-good" : "trend-bad";
+    const effetto = migliorato
+      ? upIsGood
+        ? "positivo"
+        : "risparmio"
+      : "negativo";
+    const label = `${metric} ${inAumento ? "in aumento" : "in calo"} — ${effetto}`;
+    return ` <i class="fas ${icona} trend-icon ${color}" title="${label}"></i>`;
+  }
+
   function aggiornaTabella(dati) {
     statsTableBodySx.innerHTML = "";
     statsTableBodyDx.innerHTML = "";
 
-    for (let m = 0; m < 6; m++) {
+    const buildRow = (m) => {
       const e = dati.entrateMensili[m];
       const u = dati.usciteMensili[m];
       const saldo = e - u;
       const saldoClass = saldo >= 0 ? "td-positive" : "td-negative";
-      statsTableBodySx.innerHTML += `
-        <tr>
-          <td><strong>${MESI[m]}</strong></td>
-          <td class="td-positive">${formatEuro(e)}</td>
-          <td class="td-negative">${formatEuro(u)}</td>
-          <td class="${saldoClass}">${formatEuro(saldo)}</td>
-        </tr>`;
-    }
 
-    for (let m = 6; m < 12; m++) {
-      const e = dati.entrateMensili[m];
-      const u = dati.usciteMensili[m];
-      const saldo = e - u;
-      const saldoClass = saldo >= 0 ? "td-positive" : "td-negative";
-      statsTableBodyDx.innerHTML += `
+      // Riferimento al mese precedente (nessuno per Gennaio)
+      let prevE = null,
+        prevU = null,
+        prevSaldo = null;
+      if (m > 0) {
+        prevE = dati.entrateMensili[m - 1];
+        prevU = dati.usciteMensili[m - 1];
+        prevSaldo = prevE - prevU;
+      }
+
+      return `
         <tr>
           <td><strong>${MESI[m]}</strong></td>
-          <td class="td-positive">${formatEuro(e)}</td>
-          <td class="td-negative">${formatEuro(u)}</td>
-          <td class="${saldoClass}">${formatEuro(saldo)}</td>
+          <td class="td-positive">${formatEuro(e)}${trendIcon(e, prevE, true, "Entrate")}</td>
+          <td class="td-negative">${formatEuro(u)}${trendIcon(u, prevU, false, "Uscite")}</td>
+          <td class="${saldoClass}">${formatEuro(saldo)}${trendIcon(
+            saldo,
+            prevSaldo,
+            true,
+            "Saldo"
+          )}</td>
         </tr>`;
-    }
+    };
+
+    for (let m = 0; m < 6; m++) statsTableBodySx.innerHTML += buildRow(m);
+    for (let m = 6; m < 12; m++) statsTableBodyDx.innerHTML += buildRow(m);
   }
 
   // =============================================
