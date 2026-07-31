@@ -311,18 +311,23 @@
 /* ---- MODALE VOCI MOBILE ---- */
 .mobile-modal {
   max-width: 430px;
+  display: flex;
+  flex-direction: column;
+  min-height: 420px;
+  max-height: 85vh;
 }
 .mobile-modal-sub {
   font-size: 12px;
   color: var(--text-muted);
   margin: 0 0 12px 0;
+  flex-shrink: 0;
 }
 .mobile-list {
-  max-height: 300px;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   border: 1.5px solid #e2e8f0;
   border-radius: 10px;
-  margin-bottom: 14px;
 }
 .mobile-item {
   display: flex;
@@ -362,4 +367,34 @@
 .mobile-importo {
   font-weight: 600;
   white-space: nowrap;
+}
+
+/* ---- FOOTER MODALE MOBILE (bottone OK in basso, centrato) ---- */
+.mobile-modal-footer {
+  display: flex;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 14px;
+}
+.mobile-ok-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 10px 34px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35);
+  transition: 0.15s;
+}
+.mobile-ok-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(59, 130, 246, 0.45);
+}
+.mobile-ok-btn:active {
+  transform: translateY(0);
 }
