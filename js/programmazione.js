@@ -94,6 +94,10 @@
           el.classList.remove("selected");
         });
         item.classList.add("selected");
+        // Evidenzia label/select del form in blu chiaro
+        document
+          .querySelector(".programmazione-form")
+          .classList.add("form-active");
 
         editingTipo = tipo;
         editingIdx = idx;
@@ -142,6 +146,9 @@
   function annullaModifica() {
     editingTipo = null;
     editingIdx = -1;
+    document
+      .querySelector(".programmazione-form")
+      .classList.remove("form-active");
     addRicorrenteBtn.innerHTML = '<i class="fas fa-save"></i> Salva Ricorrente';
     cancelRicBtn.style.display = "none";
     deleteRicBtn.style.display = "none";
@@ -154,6 +161,78 @@
     ricTipo.value = "entrate";
     popolaDescrizioniDaCategorie();
     aggiornaTipoForm();
+  }
+
+  /**
+   * Applica SOLO la voce ricorrente indicata all'anno corrente:
+   * rimuove le vecchie spese/entrate collegate a quel ricorrente (ricId)
+   * e rigenera solo le sue voci mensili. Le altre ricorrenti restano invariate.
+   */
+  async function applicaSingolaRicorrente(tipo, ricId) {
+    const ric = getRicorrenti();
+    const list = ric[tipo] || [];
+    const r = list.find(function (x) {
+      return x.id === ricId;
+    });
+    if (!r) return;
+    const year = getCurrentYear();
+
+    const speseAggiornate = getSpese(year);
+    const entrateAggiornate = getEntrate(year);
+
+    // Rimuovi le vecchie voci collegate SOLO a questo ricorrente
+    for (let m = 0; m < 12; m++) {
+      if (tipo === "uscite" && speseAggiornate[m]) {
+        speseAggiornate[m] = speseAggiornate[m].filter(function (s) {
+          return s.ricId !== ricId || s.stato === "eseguita";
+        });
+      }
+      if (tipo === "entrate" && entrateAggiornate[m]) {
+        entrateAggiornate[m] = entrateAggiornate[m].filter(function (e) {
+          return e.ricId !== ricId;
+        });
+      }
+    }
+
+    // Rigenera le voci di questo ricorrente
+    const giorno = r.giorno || 1;
+    const inizio = new Date(r.dataInizio + "-01T00:00:00");
+    const fine = new Date(r.dataFine + "-01T00:00:00");
+    const firstMonth = inizio.getFullYear() === year ? inizio.getMonth() : 0;
+    const lastMonth = fine.getFullYear() === year ? fine.getMonth() : 11;
+
+    for (let m = firstMonth; m <= lastMonth; m++) {
+      const meseDate = new Date(year, m, 1);
+      if (meseDate < inizio || meseDate > fine) continue;
+      const dataStr = calcolaDataFineMese(year, m, giorno);
+
+      if (tipo === "uscite") {
+        if (!speseAggiornate[m]) speseAggiornate[m] = [];
+        speseAggiornate[m].push({
+          id: generaId("spesa"),
+          data: dataStr,
+          descrizione: r.descrizione,
+          importo: r.importo,
+          stato: "preventivata",
+          ricId: r.id
+        });
+      } else {
+        if (!entrateAggiornate[m]) entrateAggiornate[m] = [];
+        entrateAggiornate[m].push({
+          id: generaId("entrata"),
+          data: dataStr,
+          descrizione: r.descrizione,
+          importo: r.importo,
+          ricId: r.id
+        });
+      }
+    }
+
+    if (tipo === "uscite") {
+      await saveSpese(year, speseAggiornate);
+    } else {
+      await saveEntrate(year, entrateAggiornate);
+    }
   }
 
   async function aggiungiRicorrente() {
@@ -191,8 +270,13 @@
 
     showSpinner("Salvataggio in corso...");
 
+    let ricId = null;
+    const tipoDaApplicare = editingTipo && editingIdx >= 0 ? editingTipo : tipo;
+
     if (editingTipo && editingIdx >= 0) {
       // MODIFICA: aggiorna ricorrente esistente
+      const lista = getRicorrenti()[editingTipo];
+      if (lista && lista[editingIdx]) ricId = lista[editingIdx].id;
       await updateRicorrente(editingTipo, editingIdx, {
         descrizione: desc,
         importo: importo,
@@ -203,8 +287,9 @@
       annullaModifica();
     } else {
       // NUOVO: aggiungi ricorrente
+      ricId = generaId("ric-" + (tipo === "entrate" ? "e" : "u"));
       await addRicorrente(tipo, {
-        id: generaId("ric-" + (tipo === "entrate" ? "e" : "u")),
+        id: ricId,
         descrizione: desc,
         importo: importo,
         giorno: giorno,
@@ -216,8 +301,10 @@
       ricGiorno.value = "1";
     }
 
-    // Applica subito al planning
-    await applicaRicorrenti(getCurrentYear());
+    // Applica subito al planning (solo la voce modificata/aggiunta)
+    if (ricId) {
+      await applicaSingolaRicorrente(tipoDaApplicare, ricId);
+    }
 
     hideSpinner();
 

@@ -35,6 +35,16 @@
   background: var(--input-bg);
   transition: border-color 0.2s;
 }
+.programmazione-form .field-group input,
+.programmazione-form .field-group select {
+  background: #fff;
+}
+.programmazione-form.form-active .field-group input,
+.programmazione-form.form-active .field-group input:focus,
+.programmazione-form.form-active .field-group select,
+.programmazione-form.form-active .field-group select:focus {
+  background: #dbeafe;
+}
 .programmazione-form .field-group input:focus,
 .programmazione-form .field-group select:focus {
   outline: none;
