@@ -368,6 +368,11 @@
   font-weight: 600;
   white-space: nowrap;
 }
+.mobile-totale {
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
 
 /* ---- MODALE GRUPPO SPESE (voci aggregate) ---- */
 .gruppo-modal {

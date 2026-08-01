@@ -743,7 +743,7 @@ async function getVociMobileNonViste() {
     const [spese, entrate] = await Promise.all([
       sb("GET", "spese", {
         params: {
-          select: "id,data,descrizione,importo",
+          select: "id,data,descrizione,importo,ric_id",
           origine: "eq.mobile",
           visto_da_desktop: "eq.false",
           order: "data.asc"
@@ -751,7 +751,7 @@ async function getVociMobileNonViste() {
       }),
       sb("GET", "entrate", {
         params: {
-          select: "id,data,descrizione,importo",
+          select: "id,data,descrizione,importo,ric_id",
           origine: "eq.mobile",
           visto_da_desktop: "eq.false",
           order: "data.asc"
@@ -765,7 +765,8 @@ async function getVociMobileNonViste() {
         tipo: "uscita",
         data: s.data,
         descrizione: s.descrizione,
-        importo: s.importo
+        importo: s.importo,
+        ric_id: s.ric_id || null
       });
     }
     for (const e of entrate) {
@@ -774,7 +775,8 @@ async function getVociMobileNonViste() {
         tipo: "entrata",
         data: e.data,
         descrizione: e.descrizione,
-        importo: e.importo
+        importo: e.importo,
+        ric_id: e.ric_id || null
       });
     }
     voci.sort((a, b) => a.data.localeCompare(b.data));

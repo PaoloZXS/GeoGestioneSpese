@@ -17,9 +17,10 @@ class _InsertScreenState extends State<InsertScreen> {
   final _importoController = TextEditingController();
 
   bool _isEntrata = false; // false = uscita
-  DateTime _data = DateTime.now();
+  String _dataInizio =
+      '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}';
+  String _dataFine = '${DateTime.now().year}-12';
   String? _categoria;
-  String _stato = 'preventivata';
   List<Map<String, dynamic>> _categorie = [];
   bool _caricandoCategorie = true;
   bool _salvando = false;
@@ -67,27 +68,104 @@ class _InsertScreenState extends State<InsertScreen> {
     }
   }
 
-  Future<void> _selezionaData() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _data,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2040),
-      locale: const Locale('it'),
-    );
-    if (picked != null) {
-      setState(() => _data = picked);
-    }
+  static const _nomiMesi = [
+    'Gennaio',
+    'Febbraio',
+    'Marzo',
+    'Aprile',
+    'Maggio',
+    'Giugno',
+    'Luglio',
+    'Agosto',
+    'Settembre',
+    'Ottobre',
+    'Novembre',
+    'Dicembre',
+  ];
+
+  String _formatMese(String ym) {
+    final p = ym.split('-');
+    return '${_nomiMesi[int.parse(p[1]) - 1]} ${p[0]}';
   }
 
-  String _formatData(DateTime d) =>
-      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+  /// Selettore mese/anno che restituisce una stringa YYYY-MM.
+  Future<void> _selezionaMese({required bool isInizio}) async {
+    final corrente = isInizio ? _dataInizio : _dataFine;
+    final p = corrente.split('-');
+    var anno = int.parse(p[0]);
+    var mese = int.parse(p[1]);
+    final now = DateTime.now();
+
+    final scelto = await showDialog<Map<String, int>>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Text(isInizio ? 'Data inizio' : 'Data fine'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButton<int>(
+                value: anno,
+                isExpanded: true,
+                items: [
+                  for (var a = now.year; a <= now.year + 5; a++)
+                    DropdownMenuItem(value: a, child: Text('$a')),
+                ],
+                onChanged: (v) => setDialogState(() => anno = v ?? anno),
+              ),
+              const SizedBox(height: 12),
+              DropdownButton<int>(
+                value: mese,
+                isExpanded: true,
+                items: [
+                  for (var m = 1; m <= 12; m++)
+                    DropdownMenuItem(value: m, child: Text(_nomiMesi[m - 1])),
+                ],
+                onChanged: (v) => setDialogState(() => mese = v ?? mese),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Annulla'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, {'anno': anno, 'mese': mese}),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (scelto == null || !mounted) return;
+    final ym =
+        '${scelto['anno']}-${scelto['mese']!.toString().padLeft(2, '0')}';
+    setState(() {
+      if (isInizio) {
+        _dataInizio = ym;
+      } else {
+        _dataFine = ym;
+      }
+    });
+  }
+
+  /// Calcola il giorno valido per il mese (scala all'ultimo giorno se eccede).
+  String _calcolaDataFineMese(int year, int month, int giorno) {
+    final lastDay = DateTime(year, month + 1, 0).day;
+    final day = giorno > lastDay ? lastDay : giorno;
+    return '${year.toString().padLeft(4, '0')}-'
+        '${month.toString().padLeft(2, '0')}-'
+        '${day.toString().padLeft(2, '0')}';
+  }
 
   Future<void> _salva() async {
     final importo = double.tryParse(
       _importoController.text.trim().replaceAll(',', '.'),
     );
-    if (_categoria == null) {
+    final categoria = _categoria;
+    if (categoria == null) {
       _messaggio('Seleziona una categoria');
       return;
     }
@@ -95,47 +173,105 @@ class _InsertScreenState extends State<InsertScreen> {
       _messaggio('Inserisci un importo valido');
       return;
     }
+    if (_dataFine.compareTo(_dataInizio) < 0) {
+      _messaggio(
+        'La data fine non può precedere la data inizio',
+        isError: true,
+      );
+      return;
+    }
 
     setState(() => _salvando = true);
     try {
-      final dataStr =
-          '${_data.year}-${_data.month.toString().padLeft(2, '0')}-${_data.day.toString().padLeft(2, '0')}';
+      final tipo = _isEntrata ? 'entrate' : 'uscite';
       final id =
-          '${_isEntrata ? 'entrata' : 'spesa'}-${DateTime.now().millisecondsSinceEpoch}-${Random().nextInt(0xFFFFFF).toRadixString(36)}';
+          'ric-${_isEntrata ? 'e' : 'u'}-'
+          '${DateTime.now().millisecondsSinceEpoch}-'
+          '${Random().nextInt(0xFFFFFF).toRadixString(36)}';
 
-      if (_isEntrata) {
-        await _supabase.from('entrate').insert({
-          'id': id,
-          'data': dataStr,
-          'descrizione': _categoria,
-          'importo': importo,
-          'origine': 'mobile',
-          'visto_da_desktop': false,
-        });
-      } else {
-        await _supabase.from('spese').insert({
-          'id': id,
-          'data': dataStr,
-          'descrizione': _categoria,
-          'importo': importo,
-          'stato': _stato,
-          'origine': 'mobile',
-          'visto_da_desktop': false,
-        });
-      }
+      // Salva la voce ricorrente su Supabase
+      await _supabase.from('ricorrenti').insert({
+        'id': id,
+        'tipo': tipo,
+        'descrizione': categoria,
+        'importo': importo,
+        'giorno': 1,
+        'data_inizio': _dataInizio,
+        'data_fine': _dataFine,
+      });
+
+      // Applica i ricorrenti all'anno corrente (genera spese/entrate)
+      await _applicaRicorrenti(
+        ricId: id,
+        tipo: tipo,
+        descrizione: categoria,
+        importo: importo,
+        dataInizio: _dataInizio,
+        dataFine: _dataFine,
+      );
 
       if (!mounted) return;
       setState(() {
         _salvando = false;
         _categoria = null;
-        _stato = 'preventivata';
         _importoController.clear();
       });
-      _messaggio('Salvato!');
+      _messaggio('Ricorrente salvato!');
     } catch (e) {
       if (!mounted) return;
       setState(() => _salvando = false);
       _messaggio('Errore salvataggio: $e', isError: true);
+    }
+  }
+
+  /// Applica la voce ricorrente all'anno corrente, generando le relative
+  /// spese/entrate mensili (equivalente mobile di applicaRicorrenti del web).
+  Future<void> _applicaRicorrenti({
+    required String ricId,
+    required String tipo,
+    required String descrizione,
+    required double importo,
+    required String dataInizio,
+    required String dataFine,
+  }) async {
+    final year = DateTime.now().year;
+    final inizio = DateTime.parse('$dataInizio-01');
+    final fine = DateTime.parse('$dataFine-01');
+    final firstMonth = inizio.year == year ? inizio.month : 1;
+    final lastMonth = fine.year == year ? fine.month : 12;
+
+    for (var m = firstMonth; m <= lastMonth; m++) {
+      final meseDate = DateTime(year, m, 1);
+      if (meseDate.isBefore(inizio) || meseDate.isAfter(fine)) continue;
+
+      final dataStr = _calcolaDataFineMese(year, m, 1);
+      final id =
+          '${tipo == 'uscite' ? 'spesa' : 'entrata'}-'
+          '${DateTime.now().millisecondsSinceEpoch}-'
+          '${Random().nextInt(0xFFFFFF).toRadixString(36)}';
+
+      if (tipo == 'uscite') {
+        await _supabase.from('spese').insert({
+          'id': id,
+          'data': dataStr,
+          'descrizione': descrizione,
+          'importo': importo,
+          'stato': 'preventivata',
+          'ric_id': ricId,
+          'origine': 'mobile',
+          'visto_da_desktop': false,
+        });
+      } else {
+        await _supabase.from('entrate').insert({
+          'id': id,
+          'data': dataStr,
+          'descrizione': descrizione,
+          'importo': importo,
+          'ric_id': ricId,
+          'origine': 'mobile',
+          'visto_da_desktop': false,
+        });
+      }
     }
   }
 
@@ -181,14 +317,24 @@ class _InsertScreenState extends State<InsertScreen> {
             ),
             const SizedBox(height: 16),
 
-            // ---- DATA ----
+            // ---- DATA INIZIO / FINE (YYYY-MM) ----
             Card(
               margin: EdgeInsets.zero,
               child: ListTile(
-                leading: const Icon(Icons.calendar_today),
-                title: const Text('Data'),
-                subtitle: Text(_formatData(_data)),
-                onTap: _selezionaData,
+                leading: const Icon(Icons.play_circle_outline),
+                title: const Text('Data inizio'),
+                subtitle: Text(_formatMese(_dataInizio)),
+                onTap: () => _selezionaMese(isInizio: true),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Card(
+              margin: EdgeInsets.zero,
+              child: ListTile(
+                leading: const Icon(Icons.event),
+                title: const Text('Data fine'),
+                subtitle: Text(_formatMese(_dataFine)),
+                onTap: () => _selezionaMese(isInizio: false),
               ),
             ),
             const SizedBox(height: 16),
@@ -215,29 +361,6 @@ class _InsertScreenState extends State<InsertScreen> {
                   : (v) => setState(() => _categoria = v),
             ),
             const SizedBox(height: 16),
-
-            // ---- STATO (solo per uscite) ----
-            if (!_isEntrata) ...[
-              DropdownButtonFormField<String>(
-                value: _stato,
-                decoration: const InputDecoration(
-                  labelText: 'Stato',
-                  prefixIcon: Icon(Icons.flag),
-                ),
-                items: const [
-                  DropdownMenuItem(
-                    value: 'preventivata',
-                    child: Text('Preventivata'),
-                  ),
-                  DropdownMenuItem(value: 'eseguita', child: Text('Eseguita')),
-                  DropdownMenuItem(value: 'scaduta', child: Text('Scaduta')),
-                ],
-                onChanged: _salvando
-                    ? null
-                    : (v) => setState(() => _stato = v ?? 'preventivata'),
-              ),
-              const SizedBox(height: 16),
-            ],
 
             // ---- IMPORTO ----
             TextField(

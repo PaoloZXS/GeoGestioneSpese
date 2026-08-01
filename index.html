@@ -329,10 +329,42 @@
         var mobileOkBtn = document.getElementById("mobileOkBtn");
         var controllato = false;
 
+        // "gen 2026 - dic 2026"
+        function formatPeriodoMes(d1, d2) {
+          function breve(dataISO) {
+            var p = dataISO.split("-");
+            return MESI_ABBR[parseInt(p[1]) - 1].toLowerCase() + " " + p[0];
+          }
+          return breve(d1) + " - " + breve(d2);
+        }
+
         function mostraModaleMobile() {
           if (vociMobile.length === 0) return;
           mobileList.innerHTML = "";
+
+          // Raggruppa le voci ricorrenti (stesso ric_id) per descrizione;
+          // le voci singole (senza ric_id) restano righe singole.
+          var gruppi = [];
+          var singole = [];
+          var indicePerRic = {};
           vociMobile.forEach(function (v) {
+            if (v.ric_id) {
+              if (!(v.ric_id in indicePerRic)) {
+                indicePerRic[v.ric_id] = gruppi.length;
+                gruppi.push({
+                  descrizione: v.descrizione,
+                  importoMensile: Number(v.importo),
+                  voci: []
+                });
+              }
+              gruppi[indicePerRic[v.ric_id]].voci.push(v);
+            } else {
+              singole.push(v);
+            }
+          });
+
+          // Righe singole (come prima: data · tipo · descrizione · importo)
+          singole.forEach(function (v) {
             var item = document.createElement("div");
             item.className = "mobile-item";
             var dataStr = formatDataBreve(v.data);
@@ -355,6 +387,33 @@
               "</span>";
             mobileList.appendChild(item);
           });
+
+          // Righe gruppo (ricorrenti): descrizione · periodo · mensile · totale
+          gruppi.forEach(function (g) {
+            var primo = g.voci[0].data;
+            var ultimo = g.voci[g.voci.length - 1].data;
+            var totale = 0;
+            g.voci.forEach(function (v) {
+              totale += Number(v.importo);
+            });
+            var item = document.createElement("div");
+            item.className = "mobile-item";
+            item.innerHTML =
+              '<span class="mobile-desc">' +
+              g.descrizione +
+              "</span>" +
+              '<span class="mobile-data">' +
+              formatPeriodoMes(primo, ultimo) +
+              "</span>" +
+              '<span class="mobile-importo">' +
+              formatEuro(g.importoMensile) +
+              "</span>" +
+              '<span class="mobile-totale">' +
+              formatEuro(totale) +
+              "</span>";
+            mobileList.appendChild(item);
+          });
+
           mobileModal.classList.add("active");
         }
 
