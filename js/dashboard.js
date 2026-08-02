@@ -258,12 +258,9 @@
       <span class="importo">${formatEuro(totale)}</span>
       <span class="badge-stato ${stato}">${statoLabel}</span>
     `;
-    div.addEventListener("click", function (e) {
-      openGruppoModal(
-        meseIndex,
-        gruppo.map((x) => x.id)
-      );
-    });
+    // Dati per il click delegato sul grid
+    div.dataset.month = meseIndex;
+    div.dataset.groupIds = JSON.stringify(gruppo.map((x) => x.id));
     return div;
   }
 
@@ -469,10 +466,7 @@
       <span class="badge-stato ${spesa.stato}">${statoLabel}</span>
     `;
 
-    // Click sulla riga -> modifica
-    div.addEventListener("click", function (e) {
-      openEditModal(meseIndex, spesa.id);
-    });
+    // Click sulla riga -> modifica (delegato sul grid)
 
     // Drag & drop
     div.addEventListener("dragstart", function (e) {
@@ -840,6 +834,23 @@
   });
   nextYearBtn.addEventListener("click", function () {
     changeYear(1);
+  });
+
+  // Delegazione click sul planning: gestisce righe singole (modifica) e
+  // gruppi merged (dettaglio) senza riattaccare listener a ogni render.
+  grid.addEventListener("click", function (e) {
+    const item = e.target.closest(".expense-item");
+    if (!item) return;
+    const meseIndex = parseInt(item.dataset.month, 10);
+    if (item.classList.contains("merged")) {
+      let ids = [];
+      try {
+        ids = JSON.parse(item.dataset.groupIds || "[]");
+      } catch (_) {}
+      openGruppoModal(meseIndex, ids);
+    } else {
+      openEditModal(meseIndex, item.dataset.expenseId);
+    }
   });
 
   // Modale entrate

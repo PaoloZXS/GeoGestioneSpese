@@ -417,15 +417,38 @@
           mobileModal.classList.add("active");
         }
 
+        // Vero se almeno un gruppo ricorrente copre più di un mese
+        // (dataInizio !== dataFine)
+        function haRicorrentiMultiMese() {
+          var perRic = {};
+          vociMobile.forEach(function (v) {
+            if (!v.ric_id) return;
+            if (!perRic[v.ric_id]) perRic[v.ric_id] = [];
+            perRic[v.ric_id].push(v.data);
+          });
+          for (var id in perRic) {
+            var dates = perRic[id].sort();
+            var primo = dates[0].substring(0, 7);
+            var ultimo = dates[dates.length - 1].substring(0, 7);
+            if (primo !== ultimo) return true;
+          }
+          return false;
+        }
+
         mobileOkBtn.addEventListener("click", async function () {
-          mobileModal.classList.remove("active");
           try {
+            console.log("Applicazione ricorrenti in corso...");
+            await applicaRicorrenti(getCurrentYear());
+            await caricaDaSupabase();
+            renderPlanning();
             await segnaVociMobileComeViste(
               vociMobile.map(function (v) {
                 return v.id;
               })
             );
           } catch (_) {}
+
+          mobileModal.classList.remove("active");
         });
 
         async function controllaVociMobile() {

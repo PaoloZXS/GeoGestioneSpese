@@ -12,18 +12,21 @@
   // Stessa password del login (login.js)
   const PASSWORD = "3621";
 
-  // Elementi DOM
-  const contenitoreLista = document.getElementById("contenitoreLista");
-  const elencoGruppi = document.getElementById("elencoGruppi");
-  const dettaglioHeader = document.getElementById("dettaglioHeader");
-  const elencoMovimenti = document.getElementById("elencoMovimenti");
-  const btnSelezionaTutto = document.getElementById("btnSelezionaTutto");
-  const btnNessuno = document.getElementById("btnNessuno");
-  const btnConferma = document.getElementById("btnConfermaCancella");
-  const btnAnnulla = document.getElementById("btnAnnulla");
+  // Elementi DOM del tab Cancellazione (creati dinamicamente all'apertura)
+  let tabCancellazione = null;
+  let contenitoreLista = null;
+  let elencoGruppi = null;
+  let dettaglioHeader = null;
+  let elencoMovimenti = null;
+  let btnSelezionaTutto = null;
+  let btnNessuno = null;
+  let btnConferma = null;
+  let btnAnnulla = null;
+  let btnEliminaCategorie = null;
 
-  // Modale password
+  // Modale password (usato al momento di eliminare)
   const pwModal = document.getElementById("pwModal");
+  const pwTitle = document.getElementById("pwTitle");
   const pwMsg = document.getElementById("pwMsg");
   const pwInput = document.getElementById("pwInput");
   const pwOk = document.getElementById("pwOk");
@@ -32,6 +35,8 @@
   let gruppi = []; // [{ descrizione, voci: [...] }]
   let gruppoAttivo = -1; // indice del gruppo selezionato
   let selezione = new Set(); // id delle voci spuntate
+  let categorieSelezionate = new Set(); // indici delle categorie spuntate
+  let cancellazioneSbloccata = false; // password tab Cancellazione inserita
 
   // =============================================
   // HELPERS
@@ -118,23 +123,40 @@
     if (gruppi.length === 0) {
       elencoGruppi.innerHTML =
         '<div class="mv-empty">Nessuna entrata o uscita trovata nel planning.</div>';
+      aggiornaBtnCategorie();
       return;
     }
 
     gruppi.forEach((g, idx) => {
       const row = document.createElement("div");
       row.className = "gruppo-row" + (idx === gruppoAttivo ? " attiva" : "");
+      const isCatSel = categorieSelezionate.has(idx);
       row.innerHTML = `
+        <input type="radio" name="catSel" class="mv-check" ${isCatSel ? "checked" : ""} />
         <span class="gruppo-nome">${escapeHtml(g.descrizione)}</span>
         <span class="gruppo-count">${g.voci.length} voci</span>
       `;
-      row.addEventListener("click", () => {
-        gruppoAttivo = idx;
+      const radio = row.querySelector(".mv-check");
+      radio.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (radio.checked) {
+          categorieSelezionate = new Set([idx]); // una sola categoria alla volta
+          gruppoAttivo = idx; // sincronizza la lista a destra con questa categoria
+        }
         renderGruppi();
         renderDettaglio();
+        aggiornaBtnCategorie();
+      });
+      row.addEventListener("click", () => {
+        gruppoAttivo = idx;
+        categorieSelezionate = new Set([idx]); // radio selezionato
+        renderGruppi();
+        renderDettaglio();
+        aggiornaBtnCategorie();
       });
       elencoGruppi.appendChild(row);
     });
+    aggiornaBtnCategorie();
   }
 
   // =============================================
@@ -142,11 +164,20 @@
   // =============================================
 
   function renderDettaglio() {
-    const g = gruppi[gruppoAttivo];
+    // Liste per categoria: una lista per ogni categoria selezionata (o attiva)
+    let gruppiDaMostrare = [];
+    if (categorieSelezionate.size > 0) {
+      gruppiDaMostrare = [...categorieSelezionate]
+        .map((idx) => gruppi[idx])
+        .filter(Boolean)
+        .sort((a, b) => a.descrizione.localeCompare(b.descrizione, "it"));
+    } else if (gruppoAttivo >= 0 && gruppi[gruppoAttivo]) {
+      gruppiDaMostrare = [gruppi[gruppoAttivo]];
+    }
 
-    if (!g) {
+    if (gruppiDaMostrare.length === 0) {
       dettaglioHeader.innerHTML =
-        '<i class="fas fa-list-ul"></i> <span>Dettaglio</span>';
+        '<i class="fas fa-list-ul"></i> <span>Dettaglio voci</span>';
       elencoMovimenti.innerHTML =
         '<div class="mv-empty">Clicca su una voce a sinistra per vedere le singole voci.</div>';
       aggiornaRiepilogo();
@@ -154,38 +185,46 @@
     }
 
     dettaglioHeader.innerHTML =
-      '<i class="fas fa-list-ul"></i> <span>' +
-      escapeHtml(g.descrizione) +
-      "</span>";
+      '<i class="fas fa-list-ul"></i> <span>Dettaglio voci</span>';
 
     elencoMovimenti.innerHTML = "";
-    g.voci.forEach((mv) => {
-      const isSel = selezione.has(mv.id);
-      const row = document.createElement("label");
-      row.className = "mv-row" + (isSel ? " selezionata" : "");
+    gruppiDaMostrare.forEach((g) => {
+      // Una lista (sottolista) per categoria, con intestazione
+      const sub = document.createElement("div");
+      sub.className = "mv-sublist";
+      sub.innerHTML =
+        '<div class="mv-sublist-header"><span>' +
+        escapeHtml(g.descrizione) +
+        '</span><span class="mv-sublist-count">' +
+        g.voci.length +
+        " voci</span></div>";
 
-      const icona =
-        mv.tipo === "entrata"
-          ? '<i class="fas fa-arrow-up"></i>'
-          : '<i class="fas fa-arrow-down"></i>';
+      // Voci della categoria, ordinate per data crescente
+      const voci = [...g.voci].sort((a, b) => a.data.localeCompare(b.data));
+      voci.forEach((mv) => {
+        const isSel = selezione.has(mv.id);
+        const row = document.createElement("label");
+        row.className = "mv-row" + (isSel ? " selezionata" : "");
 
-      row.innerHTML = `
-        <input type="checkbox" class="mv-check" ${isSel ? "checked" : ""} />
-        <span class="mv-tipo ${mv.tipo}">${icona}</span>
-        <span class="mv-data">${formatDataBreve(mv.data)}</span>
-        <span class="mv-desc">${escapeHtml(mv.descrizione)}</span>
-        <span class="mv-importo ${mv.tipo}">${formatEuro(mv.importo)}</span>
-      `;
+        row.innerHTML = `
+          <input type="checkbox" class="mv-check" ${isSel ? "checked" : ""} />
+          <span class="mv-data">${formatDataBreve(mv.data)}</span>
+          <span class="mv-desc">${escapeHtml(mv.descrizione)}</span>
+          <span class="mv-importo ${mv.tipo}">${formatEuro(mv.importo)}</span>
+        `;
 
-      const check = row.querySelector(".mv-check");
-      check.addEventListener("change", () => {
-        if (check.checked) selezione.add(mv.id);
-        else selezione.delete(mv.id);
-        row.classList.toggle("selezionata", check.checked);
-        aggiornaRiepilogo();
+        const check = row.querySelector(".mv-check");
+        check.addEventListener("change", () => {
+          if (check.checked) selezione.add(mv.id);
+          else selezione.delete(mv.id);
+          row.classList.toggle("selezionata", check.checked);
+          aggiornaRiepilogo();
+        });
+
+        sub.appendChild(row);
       });
 
-      elencoMovimenti.appendChild(row);
+      elencoMovimenti.appendChild(sub);
     });
 
     aggiornaRiepilogo();
@@ -195,6 +234,12 @@
     const sel = selezione.size;
     btnConferma.textContent = `Elimina selezionat${sel === 1 ? "a" : "e"} (${sel})`;
     btnConferma.disabled = sel === 0;
+  }
+
+  function aggiornaBtnCategorie() {
+    if (btnEliminaCategorie) {
+      btnEliminaCategorie.disabled = categorieSelezionate.size === 0;
+    }
   }
 
   // =============================================
@@ -253,6 +298,8 @@
 
   function chiediPassword(msg) {
     return new Promise((resolve) => {
+      pwTitle.textContent = "Conferma eliminazione";
+      pwOk.innerHTML = '<i class="fas fa-trash"></i> Elimina';
       pwMsg.textContent = msg;
       pwInput.value = "";
       pwModal.classList.add("active");
@@ -290,30 +337,15 @@
   function popolaLista() {
     const lista = raccogliMovimenti();
     gruppi = costruisciGruppi(lista);
-    gruppoAttivo = gruppi.length > 0 ? 0 : -1;
+    gruppoAttivo = -1;
     selezione = new Set();
+    categorieSelezionate = new Set();
     renderGruppi();
     renderDettaglio();
     contenitoreLista.hidden = false;
   }
 
-  btnSelezionaTutto.addEventListener("click", () => {
-    // Seleziona SOLO le voci del gruppo attivo (non tutte)
-    const g = gruppi[gruppoAttivo];
-    if (!g) return;
-    selezione = new Set(g.voci.map((v) => v.id));
-    renderDettaglio();
-  });
-
-  btnNessuno.addEventListener("click", () => {
-    // Deseleziona SOLO le voci del gruppo attivo
-    const g = gruppi[gruppoAttivo];
-    if (!g) return;
-    g.voci.forEach((v) => selezione.delete(v.id));
-    renderDettaglio();
-  });
-
-  btnConferma.addEventListener("click", async () => {
+  async function eliminaSelezionate() {
     if (selezione.size === 0) return;
     const n = selezione.size;
 
@@ -322,37 +354,210 @@
     );
     if (!ok) return;
 
-    // La password viene chiesta solo qui
-    const pw = await chiediPassword(
-      `Inserisci la password per eliminare ${n} ${n === 1 ? "voce" : "voci"}.`
-    );
-    if (pw === null) return;
-
-    if (pw !== PASSWORD) {
-      await showAlert("Password errata. Operazione annullata.");
-      return;
-    }
-
     await cancellaSelezionati();
     await showAlert(
       `${n} ${n === 1 ? "voce eliminata" : "voci eliminate"} dal planning.`
     );
 
+    // Notifica le altre pagine (es. Ricorrenti) che i dati sono cambiati
+    window.dispatchEvent(new CustomEvent("dataReady"));
+
     // Ricarica la lista con i dati rimasti
     popolaLista();
-  });
+  }
 
-  btnAnnulla.addEventListener("click", () => {
-    selezione = new Set();
-    renderDettaglio();
-  });
+  async function eliminaCategorieSelezionate() {
+    if (categorieSelezionate.size === 0) return;
+    const n = categorieSelezionate.size;
+
+    const ok = await showConfirm(
+      `Eliminare ${n} ${n === 1 ? "categoria" : "categorie"} e tutte le relative voci?`
+    );
+    if (!ok) return;
+
+    // Raccoglie tutte le voci delle categorie selezionate
+    const ids = new Set();
+    categorieSelezionate.forEach((idx) => {
+      const g = gruppi[idx];
+      if (g) g.voci.forEach((v) => ids.add(v.id));
+    });
+    selezione = ids;
+    await cancellaSelezionati();
+
+    categorieSelezionate.clear();
+    await showAlert(
+      `${n} ${n === 1 ? "categoria eliminata" : "categorie eliminate"} dal planning.`
+    );
+    window.dispatchEvent(new CustomEvent("dataReady"));
+    popolaLista();
+  }
 
   // =============================================
-  // TABS
+  // TAB CANCELLAZIONE — costruzione dinamica + accesso protetto
   // =============================================
+
+  function costruisciTabCancellazione() {
+    tabCancellazione = document.getElementById("tab-cancellazione");
+    tabCancellazione.innerHTML = `
+      <div class="impostazioni-card" id="contenitoreLista" hidden>
+        <!-- Pulsanti fissi in alto -->
+        <div class="elenco-footer toolbar-top">
+          <button class="btn-cancella" id="btnEliminaCategorie" disabled>
+            <i class="fas fa-trash"></i> Elimina Categorie Selezionate
+          </button>
+          <div class="elenco-footer-btns">
+            <button class="btn-annulla" id="btnAnnulla">Annulla</button>
+            <button class="btn-cancella" id="btnConfermaCancella" disabled>
+              <i class="fas fa-trash"></i> Elimina selezionate (0)
+            </button>
+          </div>
+        </div>
+        <div class="mv-layout">
+          <div class="mv-blocco gruppi">
+            <div class="mv-blocco-header">
+              <i class="fas fa-layer-group"></i>
+              <span>Categorie trovate</span>
+            </div>
+            <div class="gruppi-list" id="elencoGruppi"></div>
+          </div>
+          <div class="mv-blocco">
+            <div class="mv-blocco-header" id="dettaglioHeader">
+              <i class="fas fa-list-ul"></i>
+              <span>Dettaglio voci</span>
+            </div>
+            <div class="elenco-azioni dettaglio-azioni">
+              <button id="btnSelezionaTutto" class="link-btn">Tutto</button>
+              <button id="btnNessuno" class="link-btn">Nessuno</button>
+            </div>
+            <div class="mv-list" id="elencoMovimenti"></div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    contenitoreLista = document.getElementById("contenitoreLista");
+    elencoGruppi = document.getElementById("elencoGruppi");
+    dettaglioHeader = document.getElementById("dettaglioHeader");
+    elencoMovimenti = document.getElementById("elencoMovimenti");
+    btnSelezionaTutto = document.getElementById("btnSelezionaTutto");
+    btnNessuno = document.getElementById("btnNessuno");
+    btnConferma = document.getElementById("btnConfermaCancella");
+    btnAnnulla = document.getElementById("btnAnnulla");
+    btnEliminaCategorie = document.getElementById("btnEliminaCategorie");
+
+    // Eventi contenuto
+    btnSelezionaTutto.addEventListener("click", function () {
+      selezione = new Set();
+      const gruppiSel =
+        categorieSelezionate.size > 0
+          ? [...categorieSelezionate].map((idx) => gruppi[idx]).filter(Boolean)
+          : gruppoAttivo >= 0 && gruppi[gruppoAttivo]
+            ? [gruppi[gruppoAttivo]]
+            : [];
+      gruppiSel.forEach((g) => g.voci.forEach((v) => selezione.add(v.id)));
+      renderDettaglio();
+    });
+    btnNessuno.addEventListener("click", function () {
+      selezione = new Set();
+      renderDettaglio();
+    });
+    btnConferma.addEventListener("click", eliminaSelezionate);
+    btnAnnulla.addEventListener("click", function () {
+      selezione = new Set();
+      renderDettaglio();
+    });
+    btnEliminaCategorie.addEventListener("click", eliminaCategorieSelezionate);
+    aggiornaBtnCategorie();
+  }
+
+  // Chiede la password con il modale esistente: resta aperto finché non
+  // viene inserita la password corretta (o si annulla).
+  function chiediPasswordAccesso(msg) {
+    return new Promise((resolve) => {
+      pwTitle.textContent = "Cancellazione Dati";
+      pwOk.innerHTML = '<i class="fas fa-key"></i> Accedi';
+      pwMsg.textContent = msg;
+      pwInput.value = "";
+      pwModal.classList.add("active");
+      pwInput.focus();
+
+      function gestisci(valore) {
+        if (valore === null) {
+          chiudi(null);
+          return;
+        }
+        if (valore !== PASSWORD) {
+          pwMsg.textContent = "Password errata. Riprova.";
+          pwInput.value = "";
+          pwInput.focus();
+          return; // resta aperto
+        }
+        chiudi(true);
+      }
+      function chiudi(valore) {
+        pwModal.classList.remove("active");
+        pwOk.removeEventListener("click", okHandler);
+        pwAnnulla.removeEventListener("click", annullaHandler);
+        pwInput.removeEventListener("keydown", keyHandler);
+        resolve(valore);
+      }
+      function okHandler() {
+        gestisci(pwInput.value);
+      }
+      function annullaHandler() {
+        chiudi(null);
+      }
+      function keyHandler(e) {
+        if (e.key === "Enter") okHandler();
+        if (e.key === "Escape") annullaHandler();
+      }
+
+      pwOk.addEventListener("click", okHandler);
+      pwAnnulla.addEventListener("click", annullaHandler);
+      pwInput.addEventListener("keydown", keyHandler);
+    });
+  }
+
+  async function apriTabCancellazione() {
+    if (!tabCancellazione) costruisciTabCancellazione();
+
+    // Contenuto nascosto finché non si inserisce la password
+    contenitoreLista.hidden = true;
+    cancellazioneSbloccata = false;
+
+    const ok = await chiediPasswordAccesso(
+      "Inserisci la password per accedere"
+    );
+    if (ok !== true) return; // annullato → resta bloccato
+
+    cancellazioneSbloccata = true;
+    contenitoreLista.hidden = false;
+    popolaLista();
+  }
+
+  function chiudiTabCancellazione() {
+    // Svuota tutto: il tab torna completamente vuoto
+    if (tabCancellazione) tabCancellazione.innerHTML = "";
+    tabCancellazione = null;
+    contenitoreLista = null;
+    elencoGruppi = null;
+    dettaglioHeader = null;
+    elencoMovimenti = null;
+    btnSelezionaTutto = null;
+    btnNessuno = null;
+    btnConferma = null;
+    btnAnnulla = null;
+    btnEliminaCategorie = null;
+    categorieSelezionate = new Set();
+    cancellazioneSbloccata = false;
+  }
 
   document.querySelectorAll(".tab-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
+      const panelAttivo = document.querySelector(".tab-panel.active");
+      const eraCancellazione =
+        panelAttivo && panelAttivo.id === "tab-cancellazione";
+
       document
         .querySelectorAll(".tab-btn")
         .forEach((b) => b.classList.remove("active"));
@@ -362,16 +567,23 @@
       btn.classList.add("active");
       const panel = document.getElementById("tab-" + btn.dataset.tab);
       if (panel) panel.classList.add("active");
+
+      if (btn.dataset.tab === "cancellazione") {
+        // Entrando nel tab Cancellazione → mostra il form password
+        if (!eraCancellazione) apriTabCancellazione();
+      } else if (eraCancellazione) {
+        // Lasciando il tab → svuota tutto
+        chiudiTabCancellazione();
+      }
     });
   });
 
   // =============================================
-  // INIT — popola la lista appena i dati sono pronti
+  // INIT — il tab Cancellazione è vuoto all'apertura
+  // (i contenuti vengono creati solo al click sul tab)
   // =============================================
 
-  if (_cacheReady) {
-    popolaLista();
-  } else {
-    window.addEventListener("dataReady", popolaLista);
-  }
+  window.addEventListener("dataReady", function () {
+    if (cancellazioneSbloccata && contenitoreLista) popolaLista();
+  });
 })();
