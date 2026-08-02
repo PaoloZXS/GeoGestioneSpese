@@ -175,63 +175,82 @@
       return x.id === ricId;
     });
     if (!r) return;
-    const year = getCurrentYear();
 
-    const speseAggiornate = getSpese(year);
-    const entrateAggiornate = getEntrate(year);
-
-    // Rimuovi le vecchie voci collegate SOLO a questo ricorrente
-    for (let m = 0; m < 12; m++) {
-      if (tipo === "uscite" && speseAggiornate[m]) {
-        speseAggiornate[m] = speseAggiornate[m].filter(function (s) {
-          return s.ricId !== ricId || s.stato === "eseguita";
-        });
-      }
-      if (tipo === "entrate" && entrateAggiornate[m]) {
-        entrateAggiornate[m] = entrateAggiornate[m].filter(function (e) {
-          return e.ricId !== ricId;
-        });
-      }
-    }
-
-    // Rigenera le voci di questo ricorrente
     const giorno = r.giorno || 1;
     const inizio = new Date(r.dataInizio + "-01T00:00:00");
     const fine = new Date(r.dataFine + "-01T00:00:00");
-    const firstMonth = inizio.getFullYear() === year ? inizio.getMonth() : 0;
-    const lastMonth = fine.getFullYear() === year ? fine.getMonth() : 11;
+    const firstYear = inizio.getFullYear();
+    const lastYear = fine.getFullYear();
 
-    for (let m = firstMonth; m <= lastMonth; m++) {
-      const meseDate = new Date(year, m, 1);
-      if (meseDate < inizio || meseDate > fine) continue;
-      const dataStr = calcolaDataFineMese(year, m, giorno);
+    // Mese/anno corrente: le voci passate (prima del mese corrente) restano invariate
+    const now = new Date();
+    const annoCorrente = now.getFullYear();
+    const meseCorrente = now.getMonth();
+
+    // Per ogni anno tra dataInizio e dataFine
+    for (let year = firstYear; year <= lastYear; year++) {
+      if (year < annoCorrente) continue; // anni passati non toccati
+
+      const speseAggiornate = getSpese(year);
+      const entrateAggiornate = getEntrate(year);
+
+      // Mese di partenza: dal mese corrente in poi (per l'anno corrente)
+      const meseMin = year === annoCorrente ? meseCorrente : 0;
+
+      // Rimuovi le vecchie voci collegate SOLO a questo ricorrente,
+      // SOLO dal mese corrente in poi (le voci passate restano)
+      for (let m = meseMin; m < 12; m++) {
+        if (tipo === "uscite" && speseAggiornate[m]) {
+          speseAggiornate[m] = speseAggiornate[m].filter(function (s) {
+            return s.ricId !== ricId || s.stato === "eseguita";
+          });
+        }
+        if (tipo === "entrate" && entrateAggiornate[m]) {
+          entrateAggiornate[m] = entrateAggiornate[m].filter(function (e) {
+            return e.ricId !== ricId;
+          });
+        }
+      }
+
+      // Rigenera le voci di questo ricorrente per l'anno (dal mese corrente in poi)
+      const firstMonth = Math.max(
+        inizio.getFullYear() === year ? inizio.getMonth() : 0,
+        meseMin
+      );
+      const lastMonth = fine.getFullYear() === year ? fine.getMonth() : 11;
+
+      for (let m = firstMonth; m <= lastMonth; m++) {
+        const meseDate = new Date(year, m, 1);
+        if (meseDate < inizio || meseDate > fine) continue;
+        const dataStr = calcolaDataFineMese(year, m, giorno);
+
+        if (tipo === "uscite") {
+          if (!speseAggiornate[m]) speseAggiornate[m] = [];
+          speseAggiornate[m].push({
+            id: generaId("spesa"),
+            data: dataStr,
+            descrizione: r.descrizione,
+            importo: r.importo,
+            stato: "preventivata",
+            ricId: r.id
+          });
+        } else {
+          if (!entrateAggiornate[m]) entrateAggiornate[m] = [];
+          entrateAggiornate[m].push({
+            id: generaId("entrata"),
+            data: dataStr,
+            descrizione: r.descrizione,
+            importo: r.importo,
+            ricId: r.id
+          });
+        }
+      }
 
       if (tipo === "uscite") {
-        if (!speseAggiornate[m]) speseAggiornate[m] = [];
-        speseAggiornate[m].push({
-          id: generaId("spesa"),
-          data: dataStr,
-          descrizione: r.descrizione,
-          importo: r.importo,
-          stato: "preventivata",
-          ricId: r.id
-        });
+        await saveSpese(year, speseAggiornate);
       } else {
-        if (!entrateAggiornate[m]) entrateAggiornate[m] = [];
-        entrateAggiornate[m].push({
-          id: generaId("entrata"),
-          data: dataStr,
-          descrizione: r.descrizione,
-          importo: r.importo,
-          ricId: r.id
-        });
+        await saveEntrate(year, entrateAggiornate);
       }
-    }
-
-    if (tipo === "uscite") {
-      await saveSpese(year, speseAggiornate);
-    } else {
-      await saveEntrate(year, entrateAggiornate);
     }
   }
 

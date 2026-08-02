@@ -42,9 +42,7 @@
   const modalCancelBtn = document.getElementById("modalCancelBtn");
   const modalDeleteBtn = document.getElementById("modalDeleteBtn");
   const editModalTitle = document.getElementById("editModalTitle");
-  const editImportoAttuale = document.getElementById("editImportoAttuale");
   const editAddImporto = document.getElementById("editAddImporto");
-  const editImportoTotale = document.getElementById("editImportoTotale");
   const editImportiSection = document.getElementById("editImportiSection");
   const editNewImportoSection = document.getElementById(
     "editNewImportoSection"
@@ -474,37 +472,14 @@
         "text/plain",
         JSON.stringify({ expenseId: spesa.id, fromMonth: meseIndex })
       );
+      e.dataTransfer.effectAllowed = "move";
       div.classList.add("dragging");
     });
     div.addEventListener("dragend", function () {
       div.classList.remove("dragging");
-    });
-    div.addEventListener("dragover", function (e) {
-      e.preventDefault();
-      div.classList.add("drag-over");
-    });
-    div.addEventListener("dragleave", function () {
-      div.classList.remove("drag-over");
-    });
-    div.addEventListener("drop", async function (e) {
-      e.preventDefault();
-      div.classList.remove("drag-over");
-      const raw = e.dataTransfer.getData("text/plain");
-      if (!raw) return;
-      try {
-        const data = JSON.parse(raw);
-        if (data.fromMonth === meseIndex) return;
-        await moveSpesa(
-          data.expenseId,
-          currentYear,
-          data.fromMonth,
-          currentYear,
-          meseIndex
-        );
-        renderPlanning();
-      } catch (err) {
-        console.warn("drop error", err);
-      }
+      document
+        .querySelectorAll(".month-card.drag-over")
+        .forEach((c) => c.classList.remove("drag-over"));
     });
 
     return div;
@@ -607,9 +582,7 @@
     editDesc.value = entrata.descrizione;
     editNewImportoSection.style.display = "none";
     editImportiSection.style.display = "block";
-    editImportoAttuale.textContent = formatEuro(entrata.importo);
-    editAddImporto.value = "";
-    aggiornaTotale();
+    editAddImporto.value = entrata.importo;
     editData.value = entrata.data;
     // Nascondi stato per entrate
     editStatoSection.style.display = "none";
@@ -635,10 +608,8 @@
     // Per nuove spese: mostra importo normale, nascondi sezione aggiunta
     editNewImportoSection.style.display = "block";
     editImportiSection.style.display = "none";
-    // Resetta campi importo
-    editImportoAttuale.textContent = formatEuro(0);
+    // Resetta campo importo
     editAddImporto.value = "";
-    editImportoTotale.textContent = formatEuro(0);
     // Nascondi sezione ricorrente
     editRicorrenteSection.style.display = "none";
     // Data default = primo giorno del mese selezionato
@@ -663,9 +634,7 @@
     // Nascondi nuovo-importo, mostra sezione aggiunta
     editNewImportoSection.style.display = "none";
     editImportiSection.style.display = "block";
-    editImportoAttuale.textContent = formatEuro(spesa.importo);
-    editAddImporto.value = "";
-    aggiornaTotale();
+    editAddImporto.value = spesa.importo;
     editStatoSection.style.display = "block";
     // Mostra opzioni ricorrente solo per spese create dai Ricorrenti
     if (spesa.stato === "preventivata" && spesa.ricId) {
@@ -684,16 +653,6 @@
     currentEditExpenseId = null;
     isAddingNewExpense = false;
     isEditingEntrata = false;
-  }
-
-  function aggiornaTotale() {
-    const testo = editImportoAttuale.textContent
-      .replace("€ ", "")
-      .replace(/\./g, "")
-      .replace(",", ".");
-    const importoAttuale = parseFloat(testo) || 0;
-    const addImporto = parseFloat(editAddImporto.value) || 0;
-    editImportoTotale.textContent = formatEuro(importoAttuale + addImporto);
   }
 
   async function saveExpense() {
@@ -729,14 +688,17 @@
 
     if (!currentEditExpenseId) return;
 
-    const addImporto = parseFloat(editAddImporto.value) || 0;
+    const nuovoImporto = parseFloat(editAddImporto.value);
+    if (isNaN(nuovoImporto) || nuovoImporto <= 0) {
+      await showAlert("Inserire un importo valido");
+      return;
+    }
 
     if (isEditingEntrata) {
       // MODIFICA ENTRATA
       const all = getEntrateMese(currentYear, currentEditMonthIdx);
       const entrata = all.find((e) => e.id === currentEditExpenseId);
       if (!entrata) return;
-      const nuovoImporto = entrata.importo + addImporto;
       await updateEntrata(
         currentYear,
         currentEditMonthIdx,
@@ -752,7 +714,6 @@
       const all = getSpeseMese(currentYear, currentEditMonthIdx);
       const spesa = all.find((s) => s.id === currentEditExpenseId);
       if (!spesa) return;
-      const nuovoImporto = spesa.importo + addImporto;
       await updateSpesa(
         currentYear,
         currentEditMonthIdx,
@@ -802,13 +763,46 @@
   // =============================================
 
   function attachDragDrop() {
-    document.querySelectorAll(".month-card").forEach((card) => {
-      card.addEventListener("dragover", function (e) {
-        e.preventDefault();
-      });
-      card.addEventListener("drop", function (e) {
-        e.preventDefault();
-      });
+    // Delegazione drag & drop sul grid (un solo listener, evitando duplicati)
+    if (grid.dataset.dndAttached) return;
+    grid.dataset.dndAttached = "1";
+
+    grid.addEventListener("dragover", function (e) {
+      const card = e.target.closest(".month-card");
+      if (!card) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      card.classList.add("drag-over");
+    });
+    grid.addEventListener("dragleave", function (e) {
+      const card = e.target.closest(".month-card");
+      if (card) card.classList.remove("drag-over");
+    });
+    grid.addEventListener("drop", async function (e) {
+      const card = e.target.closest(".month-card");
+      if (!card) return;
+      e.preventDefault();
+      card.classList.remove("drag-over");
+      const raw = e.dataTransfer.getData("text/plain");
+      if (!raw) return;
+      try {
+        const data = JSON.parse(raw);
+        const toMonth = parseInt(card.dataset.month, 10);
+        if (data.fromMonth === toMonth) return;
+        const overlay = document.getElementById("spinnerOverlay");
+        if (overlay) overlay.classList.add("active");
+        const ok = await moveSpesa(
+          data.expenseId,
+          currentYear,
+          data.fromMonth,
+          currentYear,
+          toMonth
+        );
+        if (overlay) overlay.classList.remove("active");
+        if (ok) renderPlanning();
+      } catch (err) {
+        console.warn("drop error", err);
+      }
     });
   }
 
@@ -953,8 +947,6 @@
   modalSaveBtn.addEventListener("click", saveExpense);
   modalCancelBtn.addEventListener("click", closeEditModal);
   modalDeleteBtn.addEventListener("click", deleteFromModal);
-  // Calcolo totale in tempo reale
-  editAddImporto.addEventListener("input", aggiornaTotale);
 
   // ---- GESTIONE RICORRENTI ----
   ricDeleteThis.addEventListener("click", async function () {

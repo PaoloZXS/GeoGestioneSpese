@@ -525,66 +525,95 @@ function calcolaDataFineMese(year, month, giorno) {
  * poi rigenera tutto da capo. Accumula le modifiche e le salva su Supabase
  * in un'unica chiamata per tipo, per evitare race condition e sync multipli.
  */
-async function applicaRicorrenti(year) {
+async function applicaRicorrenti(anno) {
   const ric = getRicorrenti();
 
-  // Lavora su copie mutabili delle strutture dati correnti
-  const speseAggiornate = getSpese(year);
-  const entrateAggiornate = getEntrate(year);
-
-  // --- Rimuovi vecchie voci collegate a ricorrenti (solo se non eseguite) ---
-  for (let m = 0; m < 12; m++) {
-    if (speseAggiornate[m]) {
-      speseAggiornate[m] = speseAggiornate[m].filter(
-        (s) => !s.ricId || s.stato === "eseguita"
-      );
-    }
-    if (entrateAggiornate[m]) {
-      entrateAggiornate[m] = entrateAggiornate[m].filter((e) => !e.ricId);
+  // Range di anni coperto dai ricorrenti (tra dataInizio e dataFine),
+  // partendo dall'anno passato per sicurezza
+  let minYear = anno;
+  let maxYear = anno;
+  for (const tipo of ["entrate", "uscite"]) {
+    for (const r of ric[tipo]) {
+      const inizio = new Date(r.dataInizio + "-01T00:00:00");
+      const fine = new Date(r.dataFine + "-01T00:00:00");
+      minYear = Math.min(minYear, inizio.getFullYear());
+      maxYear = Math.max(maxYear, fine.getFullYear());
     }
   }
 
-  // --- Rigenera da capo ---
-  for (const tipo of ["entrate", "uscite"]) {
-    for (const r of ric[tipo]) {
-      const giorno = r.giorno || 1;
-      const inizio = new Date(r.dataInizio + "-01T00:00:00");
-      const fine = new Date(r.dataFine + "-01T00:00:00");
-      const firstMonth = inizio.getFullYear() === year ? inizio.getMonth() : 0;
-      const lastMonth = fine.getFullYear() === year ? fine.getMonth() : 11;
+  // Mese/anno corrente: le voci passate (prima del mese corrente) restano invariate
+  const now = new Date();
+  const annoCorrente = now.getFullYear();
+  const meseCorrente = now.getMonth();
 
-      for (let m = firstMonth; m <= lastMonth; m++) {
-        const meseDate = new Date(year, m, 1);
-        if (meseDate < inizio || meseDate > fine) continue;
-        const dataStr = calcolaDataFineMese(year, m, giorno);
+  // Per ogni anno nel range: rimuovi vecchie voci ricorrenti e rigenera
+  for (let year = minYear; year <= maxYear; year++) {
+    if (year < annoCorrente) continue; // anni passati non toccati
 
-        if (tipo === "uscite") {
-          if (!speseAggiornate[m]) speseAggiornate[m] = [];
-          speseAggiornate[m].push({
-            id: generaId("spesa"),
-            data: dataStr,
-            descrizione: r.descrizione,
-            importo: r.importo,
-            stato: "preventivata",
-            ricId: r.id
-          });
-        } else {
-          if (!entrateAggiornate[m]) entrateAggiornate[m] = [];
-          entrateAggiornate[m].push({
-            id: generaId("entrata"),
-            data: dataStr,
-            descrizione: r.descrizione,
-            importo: r.importo,
-            ricId: r.id
-          });
+    const speseAggiornate = getSpese(year);
+    const entrateAggiornate = getEntrate(year);
+
+    // Mese di partenza: dal mese corrente in poi (per l'anno corrente)
+    const meseMin = year === annoCorrente ? meseCorrente : 0;
+
+    // --- Rimuovi vecchie voci collegate a ricorrenti (solo se non eseguite),
+    //     SOLO dal mese corrente in poi ---
+    for (let m = meseMin; m < 12; m++) {
+      if (speseAggiornate[m]) {
+        speseAggiornate[m] = speseAggiornate[m].filter(
+          (s) => !s.ricId || s.stato === "eseguita"
+        );
+      }
+      if (entrateAggiornate[m]) {
+        entrateAggiornate[m] = entrateAggiornate[m].filter((e) => !e.ricId);
+      }
+    }
+
+    // --- Rigenera da capo per questo anno (dal mese corrente in poi) ---
+    for (const tipo of ["entrate", "uscite"]) {
+      for (const r of ric[tipo]) {
+        const giorno = r.giorno || 1;
+        const inizio = new Date(r.dataInizio + "-01T00:00:00");
+        const fine = new Date(r.dataFine + "-01T00:00:00");
+        const firstMonth = Math.max(
+          inizio.getFullYear() === year ? inizio.getMonth() : 0,
+          meseMin
+        );
+        const lastMonth = fine.getFullYear() === year ? fine.getMonth() : 11;
+
+        for (let m = firstMonth; m <= lastMonth; m++) {
+          const meseDate = new Date(year, m, 1);
+          if (meseDate < inizio || meseDate > fine) continue;
+          const dataStr = calcolaDataFineMese(year, m, giorno);
+
+          if (tipo === "uscite") {
+            if (!speseAggiornate[m]) speseAggiornate[m] = [];
+            speseAggiornate[m].push({
+              id: generaId("spesa"),
+              data: dataStr,
+              descrizione: r.descrizione,
+              importo: r.importo,
+              stato: "preventivata",
+              ricId: r.id
+            });
+          } else {
+            if (!entrateAggiornate[m]) entrateAggiornate[m] = [];
+            entrateAggiornate[m].push({
+              id: generaId("entrata"),
+              data: dataStr,
+              descrizione: r.descrizione,
+              importo: r.importo,
+              ricId: r.id
+            });
+          }
         }
       }
     }
-  }
 
-  // Un unico salvataggio per tipo su Supabase
-  await saveSpese(year, speseAggiornate);
-  await saveEntrate(year, entrateAggiornate);
+    // Salvataggio per anno su Supabase
+    await saveSpese(year, speseAggiornate);
+    await saveEntrate(year, entrateAggiornate);
+  }
 }
 
 // =============================================

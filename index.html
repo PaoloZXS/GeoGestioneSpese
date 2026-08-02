@@ -161,12 +161,7 @@
 
         <!-- Sezione importi per spesa ESISTENTE (nascosto in nuova) -->
         <div id="editImportiSection">
-          <label>Importo attuale</label>
-          <div class="importo-attuale-display" id="editImportoAttuale">
-            € 0.00
-          </div>
-
-          <label>Aggiungi importo (€)</label>
+          <label>Importo (€)</label>
           <input
             type="number"
             id="editAddImporto"
@@ -175,11 +170,6 @@
             min="0"
             placeholder="0.00"
           />
-
-          <label>Totale aggiornato</label>
-          <div class="importo-totale-display" id="editImportoTotale">
-            € 0.00
-          </div>
         </div>
 
         <label>Data</label>
@@ -313,6 +303,14 @@
       </div>
     </div>
 
+    <!-- SPINNER CARICAMENTO -->
+    <div class="spinner-overlay" id="spinnerOverlay">
+      <div class="spinner">
+        <i class="fas fa-spinner fa-pulse"></i>
+        <span id="spinnerMsg">Caricamento...</span>
+      </div>
+    </div>
+
     <script src="js/utils.js"></script>
     <script src="js/data.js"></script>
     <script src="js/notifications.js"></script>
@@ -328,6 +326,17 @@
         var mobileList = document.getElementById("mobileList");
         var mobileOkBtn = document.getElementById("mobileOkBtn");
         var controllato = false;
+
+        // Spinner globale
+        var spinnerOverlay = document.getElementById("spinnerOverlay");
+        var spinnerMsg = document.getElementById("spinnerMsg");
+        function mostraSpinner(msg) {
+          if (spinnerMsg) spinnerMsg.textContent = msg;
+          if (spinnerOverlay) spinnerOverlay.classList.add("active");
+        }
+        function nascondiSpinner() {
+          if (spinnerOverlay) spinnerOverlay.classList.remove("active");
+        }
 
         // "gen 2026 - dic 2026"
         function formatPeriodoMes(d1, d2) {
@@ -436,8 +445,8 @@
         }
 
         mobileOkBtn.addEventListener("click", async function () {
+          mostraSpinner("Applicazione ricorrenti in corso...");
           try {
-            console.log("Applicazione ricorrenti in corso...");
             await applicaRicorrenti(getCurrentYear());
             await caricaDaSupabase();
             renderPlanning();
@@ -448,13 +457,16 @@
             );
           } catch (_) {}
 
+          nascondiSpinner();
           mobileModal.classList.remove("active");
         });
 
         async function controllaVociMobile() {
           if (controllato) return;
           controllato = true;
+          mostraSpinner("Aggiornamento in corso...");
           vociMobile = await getVociMobileNonViste();
+          nascondiSpinner();
           mostraModaleMobile();
         }
 
