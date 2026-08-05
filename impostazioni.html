@@ -463,6 +463,96 @@
         gap: 10px;
         justify-content: center;
       }
+
+      /* ---- STORICO SNAPSHOT ---- */
+      .snapshot-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        max-height: 560px;
+        overflow-y: auto;
+      }
+      .snapshot-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px 16px;
+        border: 1px solid #d3dbe7;
+        border-radius: 10px;
+        background: #eef2f8;
+      }
+      .snapshot-info {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+      }
+      .snapshot-data {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-primary);
+      }
+      .snapshot-data i {
+        color: var(--blue);
+        margin-right: 6px;
+      }
+      .snapshot-op {
+        font-size: 12px;
+        color: var(--text-secondary);
+      }
+      .btn-ripristina {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 9px 16px;
+        background: var(--blue);
+        color: #fff;
+        border: none;
+        border-radius: 10px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: 0.2s;
+        flex-shrink: 0;
+      }
+      .btn-ripristina:hover {
+        background: var(--blue-hover);
+      }
+
+      /* ---- SPINNER CARICAMENTO ---- */
+      .spinner-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.5);
+        backdrop-filter: blur(3px);
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+      }
+      .spinner-overlay.active {
+        display: flex;
+      }
+      .spinner-overlay .spinner {
+        background: white;
+        padding: 32px 40px;
+        border-radius: 20px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 14px;
+      }
+      .spinner-overlay .spinner i {
+        font-size: 40px;
+        color: var(--blue);
+      }
+      .spinner-overlay .spinner span {
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text-primary);
+      }
     </style>
   </head>
   <body class="pagina-impostazioni">
@@ -518,11 +608,17 @@
           <button class="tab-btn" data-tab="cancellazione">
             <i class="fas fa-calendar-minus"></i> Cancellazione dati
           </button>
+          <button class="tab-btn" data-tab="storico">
+            <i class="fas fa-history"></i> Storico Salvataggi
+          </button>
           <button class="tab-btn" data-tab="test">TEST</button>
         </div>
 
         <!-- TAB: CANCELLAZIONE DATI -->
         <div class="tab-panel" id="tab-cancellazione"></div>
+
+        <!-- TAB: STORICO -->
+        <div class="tab-panel" id="tab-storico"></div>
 
         <!-- TAB: TEST (vuoto) -->
         <div class="tab-panel" id="tab-test"></div>
@@ -548,6 +644,14 @@
             <i class="fas fa-key"></i> Accedi
           </button>
         </div>
+      </div>
+    </div>
+
+    <!-- SPINNER CARICAMENTO -->
+    <div class="spinner-overlay" id="spinnerOverlay">
+      <div class="spinner">
+        <i class="fas fa-spinner fa-pulse"></i>
+        <span id="spinnerMsg">Attendere prego...</span>
       </div>
     </div>
 

@@ -647,6 +647,18 @@
     editModal.classList.add("active");
   }
 
+  // Spinner di caricamento (stesso pattern di programmazione.js)
+  const spinnerOverlay = document.getElementById("spinnerOverlay");
+  const spinnerMsg = document.getElementById("spinnerMsg");
+
+  function showSpinner(msg) {
+    if (spinnerMsg) spinnerMsg.textContent = msg;
+    if (spinnerOverlay) spinnerOverlay.classList.add("active");
+  }
+  function hideSpinner() {
+    if (spinnerOverlay) spinnerOverlay.classList.remove("active");
+  }
+
   function closeEditModal() {
     editModal.classList.remove("active");
     currentEditMonthIdx = -1;
@@ -666,68 +678,72 @@
       return;
     }
 
-    if (isAddingNewExpense) {
-      const nuovoImporto = parseFloat(
-        document.getElementById("editImporto").value
-      );
-      if (isNaN(nuovoImporto) || nuovoImporto <= 0) {
-        await showAlert("Inserire un importo valido");
-        return;
-      }
-      await addSpesa(currentYear, currentEditMonthIdx, {
-        id: generaId("spesa"),
-        data: nuovaData,
-        descrizione: nuovaDesc,
-        importo: nuovoImporto,
-        stato: nuovoStato
-      });
-      renderPlanning();
-      closeEditModal();
-      return;
-    }
-
-    if (!currentEditExpenseId) return;
-
-    const nuovoImporto = parseFloat(editAddImporto.value);
+    const nuovoImporto = isAddingNewExpense
+      ? parseFloat(document.getElementById("editImporto").value)
+      : parseFloat(editAddImporto.value);
     if (isNaN(nuovoImporto) || nuovoImporto <= 0) {
       await showAlert("Inserire un importo valido");
       return;
     }
 
-    if (isEditingEntrata) {
-      // MODIFICA ENTRATA
-      const all = getEntrateMese(currentYear, currentEditMonthIdx);
-      const entrata = all.find((e) => e.id === currentEditExpenseId);
-      if (!entrata) return;
-      await updateEntrata(
-        currentYear,
-        currentEditMonthIdx,
-        currentEditExpenseId,
-        {
-          descrizione: nuovaDesc,
-          importo: nuovoImporto,
-          data: nuovaData
-        }
-      );
-    } else {
-      // MODIFICA SPESA
-      const all = getSpeseMese(currentYear, currentEditMonthIdx);
-      const spesa = all.find((s) => s.id === currentEditExpenseId);
-      if (!spesa) return;
-      await updateSpesa(
-        currentYear,
-        currentEditMonthIdx,
-        currentEditExpenseId,
-        {
-          descrizione: nuovaDesc,
-          importo: nuovoImporto,
+    if (!isAddingNewExpense && !currentEditExpenseId) return;
+
+    // Spinner visibile subito dopo il click su "Salva"
+    showSpinner("Salvataggio in corso...");
+
+    try {
+      if (isAddingNewExpense) {
+        await addSpesa(currentYear, currentEditMonthIdx, {
+          id: generaId("spesa"),
           data: nuovaData,
+          descrizione: nuovaDesc,
+          importo: nuovoImporto,
           stato: nuovoStato
-        }
-      );
+        });
+      } else if (isEditingEntrata) {
+        // MODIFICA ENTRATA
+        const all = getEntrateMese(currentYear, currentEditMonthIdx);
+        const entrata = all.find((e) => e.id === currentEditExpenseId);
+        if (!entrata) throw new Error("Entrata non trovata");
+        await updateEntrata(
+          currentYear,
+          currentEditMonthIdx,
+          currentEditExpenseId,
+          {
+            descrizione: nuovaDesc,
+            importo: nuovoImporto,
+            data: nuovaData
+          }
+        );
+      } else {
+        // MODIFICA SPESA
+        const all = getSpeseMese(currentYear, currentEditMonthIdx);
+        const spesa = all.find((s) => s.id === currentEditExpenseId);
+        if (!spesa) throw new Error("Spesa non trovata");
+        await updateSpesa(
+          currentYear,
+          currentEditMonthIdx,
+          currentEditExpenseId,
+          {
+            descrizione: nuovaDesc,
+            importo: nuovoImporto,
+            data: nuovaData,
+            stato: nuovoStato
+          }
+        );
+      }
+
+      // Successo: nascondi spinner, aggiorna la griglia e chiudi il modale
+      // SOLO dopo che l'utente preme OK sulla notifica
+      hideSpinner();
+      renderPlanning();
+      await showAlert("Salvataggio completato!");
+      closeEditModal();
+    } catch (e) {
+      console.warn("Errore salvataggio:", e.message);
+      hideSpinner();
+      await showAlert("Errore durante il salvataggio");
     }
-    renderPlanning();
-    closeEditModal();
   }
 
   async function deleteFromModal() {

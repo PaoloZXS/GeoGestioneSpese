@@ -306,6 +306,7 @@ function getSpese(year) {
 
 async function saveSpese(year, mesi) {
   _speseCache[year] = mesi;
+  await salvaSnapshot("spese");
   await syncSpeseSupabase(year, mesi);
 }
 
@@ -376,6 +377,7 @@ function getEntrate(year) {
 
 async function saveEntrate(year, mesi) {
   _entrateCache[year] = mesi;
+  await salvaSnapshot("entrate");
   await syncEntrateSupabase(year, mesi);
 }
 
@@ -440,6 +442,7 @@ function getCategorie() {
 
 async function saveCategorie(cat) {
   _categorieCache = cat;
+  await salvaSnapshot("categorie");
   await syncCategorieSupabase(cat);
 }
 
@@ -482,6 +485,7 @@ function getRicorrenti() {
 
 async function saveRicorrenti(ric) {
   _ricorrentiCache = ric;
+  await salvaSnapshot("ricorrenti");
   await syncRicorrentiSupabase(ric);
 }
 
@@ -756,6 +760,114 @@ async function syncRicorrentiSupabase(ric) {
     }
   } catch (e) {
     console.warn("Sync ricorrenti fallito:", e.message);
+  }
+}
+
+// =============================================
+// SNAPSHOT STORICO (backup automatici)
+// =============================================
+
+// Numero massimo di snapshot da mantenere (i più recenti)
+const MAX_SNAPSHOTS = 10;
+
+/**
+ * Salva uno snapshot completo dei dati correnti (spese, entrate, categorie,
+ * ricorrenti) nella tabella snapshot_storico, poi elimina quelli oltre i
+ * MAX_SNAPSHOTS più recenti (per data di creazione).
+ */
+async function salvaSnapshot(op) {
+  console.log("Snapshot salvato:", op || "modifica");
+  try {
+    const body = {
+      id: generaId("snap"),
+      timestamp: new Date().toISOString(),
+      operazione: op || "modifica",
+      spese: JSON.stringify(_speseCache),
+      entrate: JSON.stringify(_entrateCache),
+      categorie: JSON.stringify(_categorieCache),
+      ricorrenti: JSON.stringify(_ricorrentiCache),
+      dati: JSON.stringify({
+        spese: _speseCache,
+        entrate: _entrateCache,
+        categorie: _categorieCache,
+        ricorrenti: _ricorrentiCache
+      })
+    };
+    await sb("POST", "snapshot_storico", { body });
+
+    // Mantiene solo i MAX_SNAPSHOTS più recenti
+    try {
+      const tutti = await sb("GET", "snapshot_storico", {
+        params: { select: "id", order: "timestamp.desc" }
+      });
+      const daEliminare = (tutti || []).slice(MAX_SNAPSHOTS);
+      if (daEliminare.length > 0) {
+        const ids = daEliminare.map((s) => s.id).join(",");
+        await fetch(`${SUPABASE_URL}/rest/v1/snapshot_storico?id=in.(${ids})`, {
+          method: "DELETE",
+          headers: {
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${SUPABASE_ANON_KEY}`
+          }
+        });
+      }
+    } catch (_) {}
+  } catch (e) {
+    console.warn("salvaSnapshot fallito:", e.message);
+  }
+}
+
+/**
+ * Recupera la lista degli snapshot più recenti (max MAX_SNAPSHOTS), ordinati per data.
+ */
+async function getSnapshotList() {
+  try {
+    return await sb("GET", "snapshot_storico", {
+      params: {
+        select: "*",
+        order: "timestamp.desc",
+        limit: String(MAX_SNAPSHOTS)
+      }
+    });
+  } catch (e) {
+    console.warn("getSnapshotList fallito:", e.message);
+    return [];
+  }
+}
+
+/**
+ * Ripristina uno snapshot: sovrascrive le 4 cache in memoria e riscrive
+ * tutto su Supabase tramite le sync.
+ */
+async function ripristinaSnapshot(id) {
+  try {
+    const rows = await sb("GET", "snapshot_storico", {
+      params: { select: "*", id: `eq.${id}` }
+    });
+    if (!rows || rows.length === 0) return false;
+
+    const snap = rows[0];
+    _speseCache = JSON.parse(snap.spese);
+    _entrateCache = JSON.parse(snap.entrate);
+    _categorieCache = JSON.parse(snap.categorie);
+    _ricorrentiCache = JSON.parse(snap.ricorrenti);
+    _cacheReady = true;
+
+    // Riscrive tutto su Supabase
+    for (const anno of Object.keys(_speseCache)) {
+      await syncSpeseSupabase(anno, _speseCache[anno]);
+    }
+    for (const anno of Object.keys(_entrateCache)) {
+      await syncEntrateSupabase(anno, _entrateCache[anno]);
+    }
+    await syncCategorieSupabase(_categorieCache);
+    await syncRicorrentiSupabase(_ricorrentiCache);
+
+    window.dispatchEvent(new CustomEvent("dataReady"));
+    return true;
+  } catch (e) {
+    console.warn("ripristinaSnapshot fallito:", e.message);
+    return false;
   }
 }
 

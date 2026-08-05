@@ -58,6 +58,30 @@ CREATE TABLE IF NOT EXISTS entrate (
 
 ALTER TABLE entrate ENABLE ROW LEVEL SECURITY;
 
+-- 5. SNAPSHOT STORICO (backup automatici)
+CREATE TABLE IF NOT EXISTS snapshot_storico (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  operazione TEXT,
+  spese TEXT NOT NULL,
+  entrate TEXT NOT NULL,
+  categorie TEXT NOT NULL,
+  ricorrenti TEXT NOT NULL,
+  dati TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Se la tabella esiste già con schema parziale, aggiunge le colonne mancanti
+ALTER TABLE snapshot_storico
+  ADD COLUMN IF NOT EXISTS spese TEXT,
+  ADD COLUMN IF NOT EXISTS entrate TEXT,
+  ADD COLUMN IF NOT EXISTS categorie TEXT,
+  ADD COLUMN IF NOT EXISTS ricorrenti TEXT,
+  ADD COLUMN IF NOT EXISTS dati TEXT,
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+
+ALTER TABLE snapshot_storico ENABLE ROW LEVEL SECURITY;
+
 -- =============================================
 -- POLICIES RLS — Accesso pubblico (anon key)
 -- In produzione, limitare per user_id
@@ -74,3 +98,6 @@ CREATE POLICY "Accesso pubblico categorie"
 
 CREATE POLICY "Accesso pubblico ricorrenti"
   ON ricorrenti FOR ALL USING (true) WITH CHECK (true);
+
+CREATE POLICY "Accesso pubblico snapshot"
+  ON snapshot_storico FOR ALL USING (true) WITH CHECK (true);

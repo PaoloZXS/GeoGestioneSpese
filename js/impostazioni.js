@@ -24,6 +24,10 @@
   let btnAnnulla = null;
   let btnEliminaCategorie = null;
 
+  // Elementi DOM del tab Storico (creati dinamicamente all'apertura)
+  let tabStorico = null;
+  let elencoSnapshot = null;
+
   // Modale password (usato al momento di eliminare)
   const pwModal = document.getElementById("pwModal");
   const pwTitle = document.getElementById("pwTitle");
@@ -31,6 +35,18 @@
   const pwInput = document.getElementById("pwInput");
   const pwOk = document.getElementById("pwOk");
   const pwAnnulla = document.getElementById("pwAnnulla");
+
+  // Spinner di caricamento (stesso pattern di programmazione.js)
+  const spinnerOverlay = document.getElementById("spinnerOverlay");
+  const spinnerMsg = document.getElementById("spinnerMsg");
+
+  function showSpinner(msg) {
+    if (spinnerMsg) spinnerMsg.textContent = msg;
+    if (spinnerOverlay) spinnerOverlay.classList.add("active");
+  }
+  function hideSpinner() {
+    if (spinnerOverlay) spinnerOverlay.classList.remove("active");
+  }
 
   let gruppi = []; // [{ descrizione, voci: [...] }]
   let gruppoAttivo = -1; // indice del gruppo selezionato
@@ -552,11 +568,152 @@
     cancellazioneSbloccata = false;
   }
 
+  // =============================================
+  // TAB STORICO — elenco snapshot + ripristino
+  // =============================================
+
+  function costruisciTabStorico() {
+    tabStorico = document.getElementById("tab-storico");
+    tabStorico.innerHTML = `
+      <div class="impostazioni-card">
+        <h3><i class="fas fa-history"></i> Storico Salvataggi</h3>
+        <div class="card-desc">
+          Ogni modifica ai dati salva automaticamente uno snapshot.
+          Da qui puoi ripristinare una versione precedente del piano.
+        </div>
+        <div class="snapshot-list" id="elencoSnapshot">
+          <div class="mv-empty">Caricamento...</div>
+        </div>
+      </div>
+    `;
+    elencoSnapshot = document.getElementById("elencoSnapshot");
+  }
+
+  async function apriTabStorico() {
+    if (!tabStorico) costruisciTabStorico();
+    await caricaSnapshotLista();
+  }
+
+  function chiudiTabStorico() {
+    if (tabStorico) tabStorico.innerHTML = "";
+    tabStorico = null;
+    elencoSnapshot = null;
+  }
+
+  async function caricaSnapshotLista() {
+    if (!elencoSnapshot) return;
+    elencoSnapshot.innerHTML = '<div class="mv-empty">Caricamento...</div>';
+    try {
+      const lista = await getSnapshotList();
+      if (!lista || lista.length === 0) {
+        elencoSnapshot.innerHTML =
+          '<div class="mv-empty">Nessuno snapshot salvato.</div>';
+        return;
+      }
+      elencoSnapshot.innerHTML = "";
+      lista.forEach((snap) => {
+        const row = document.createElement("div");
+        row.className = "snapshot-row";
+        const data = new Date(snap.timestamp);
+        const dataStr = data.toLocaleString("it-IT", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit"
+        });
+        row.innerHTML = `
+          <div class="snapshot-info">
+            <div class="snapshot-data">
+              <i class="fas fa-clock"></i> ${escapeHtml(dataStr)}
+            </div>
+          </div>
+          <button class="btn-ripristina">
+            <i class="fas fa-undo"></i> Ripristina
+          </button>
+        `;
+        row
+          .querySelector(".btn-ripristina")
+          .addEventListener("click", () => ripristinaSnapshotById(snap.id));
+        elencoSnapshot.appendChild(row);
+      });
+    } catch (e) {
+      elencoSnapshot.innerHTML =
+        '<div class="mv-empty">Errore nel caricamento degli snapshot.</div>';
+    }
+  }
+
+  // =============================================
+  // CONFERMA RIPRISTINO — variante di showConfirm
+  // con pulsante "Ripristina" invece di "Elimina"
+  // =============================================
+
+  function showConfirmRipristina(msg) {
+    return new Promise((resolve) => {
+      notificaIcon.className = "notifica-icon question";
+      notificaIcon.innerHTML = '<i class="fas fa-question-circle"></i>';
+      notificaMsg.textContent = msg;
+      notificaBtns.innerHTML = `
+        <button class="btn-no" id="notificaNoBtn">Annulla</button>
+        <button class="btn-yes" id="notificaYesBtn">Ripristina</button>
+      `;
+      notificaModal.classList.add("active");
+
+      function chiudi() {
+        document
+          .getElementById("notificaYesBtn")
+          .removeEventListener("click", yesHandler);
+        document
+          .getElementById("notificaNoBtn")
+          .removeEventListener("click", noHandler);
+        notificaModal.classList.remove("active");
+      }
+      function yesHandler() {
+        chiudi();
+        resolve(true);
+      }
+      function noHandler() {
+        chiudi();
+        resolve(false);
+      }
+
+      document
+        .getElementById("notificaYesBtn")
+        .addEventListener("click", yesHandler);
+      document
+        .getElementById("notificaNoBtn")
+        .addEventListener("click", noHandler);
+    });
+  }
+
+  async function ripristinaSnapshotById(id) {
+    const ok = await showConfirmRipristina(
+      "Ripristinare questo snapshot?\nI dati correnti verranno sovrascritti."
+    );
+    if (!ok) return;
+    // Spinner visibile dopo il click su "Ripristina" nel modale di conferma
+    showSpinner("Attendere prego...");
+    let esito = false;
+    try {
+      esito = await ripristinaSnapshot(id);
+    } finally {
+      hideSpinner();
+    }
+    if (esito) {
+      await showAlert("Snapshot ripristinato correttamente.");
+    } else {
+      await showAlert("Errore durante il ripristino dello snapshot.");
+    }
+    // La lista NON viene ricaricata qui: il tab la ricarica da solo
+    // alla prossima attivazione (click sul tab "Storico")
+  }
+
   document.querySelectorAll(".tab-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       const panelAttivo = document.querySelector(".tab-panel.active");
       const eraCancellazione =
         panelAttivo && panelAttivo.id === "tab-cancellazione";
+      const eraStorico = panelAttivo && panelAttivo.id === "tab-storico";
 
       document
         .querySelectorAll(".tab-btn")
@@ -571,9 +728,15 @@
       if (btn.dataset.tab === "cancellazione") {
         // Entrando nel tab Cancellazione → mostra il form password
         if (!eraCancellazione) apriTabCancellazione();
-      } else if (eraCancellazione) {
-        // Lasciando il tab → svuota tutto
-        chiudiTabCancellazione();
+        if (eraStorico) chiudiTabStorico();
+      } else if (btn.dataset.tab === "storico") {
+        // Entrando nel tab Storico → carica e mostra la lista snapshot
+        if (eraCancellazione) chiudiTabCancellazione();
+        if (!eraStorico) apriTabStorico();
+      } else {
+        // Lasciando uno dei tab dinamici → svuota tutto
+        if (eraCancellazione) chiudiTabCancellazione();
+        if (eraStorico) chiudiTabStorico();
       }
     });
   });
