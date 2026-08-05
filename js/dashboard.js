@@ -755,7 +755,12 @@
       return;
     const label = isEditingEntrata ? "entrata" : "spesa";
     const confirmed = await showConfirm(`Eliminare questa ${label}?`);
-    if (confirmed) {
+    if (!confirmed) return;
+
+    // Spinner visibile subito dopo la conferma dell'eliminazione
+    showSpinner("Attendere prego...");
+
+    try {
       if (isEditingEntrata) {
         await deleteEntrata(
           currentYear,
@@ -769,8 +774,15 @@
           currentEditExpenseId
         );
       }
+
+      hideSpinner();
       renderPlanning();
+      await showAlert("Eliminazione completata");
       closeEditModal();
+    } catch (e) {
+      console.warn("Errore eliminazione:", e.message);
+      hideSpinner();
+      await showAlert("Errore durante l'eliminazione");
     }
   }
 

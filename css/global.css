@@ -31,6 +31,12 @@ body {
   background: var(--color-bg-main);
 }
 
+/* ---- SNAPSHOT ROW (storico salvataggi) ---- */
+.snapshot-row {
+  padding: 4px 10px;
+  margin: 2px 0;
+}
+
 /* ---- TOP BAR ---- */
 .top-bar {
   background: var(--color-bg-cream);

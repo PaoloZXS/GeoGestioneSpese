@@ -224,7 +224,7 @@
 
         row.innerHTML = `
           <input type="checkbox" class="mv-check" ${isSel ? "checked" : ""} />
-          <span class="mv-data">${formatDataBreve(mv.data)}</span>
+          <span class="mv-data">${formatDataCompleta(mv.data)}</span>
           <span class="mv-desc">${escapeHtml(mv.descrizione)}</span>
           <span class="mv-importo ${mv.tipo}">${formatEuro(mv.importo)}</span>
         `;

@@ -41,6 +41,19 @@ function formatDataBreve(dataISO) {
 }
 
 /**
+ * Formatta una data ISO (YYYY-MM-DD) in formato italiano completo
+ * con giorno, mese e anno (es. "15 Gen 2026").
+ */
+function formatDataCompleta(dataISO) {
+  const d = new Date(dataISO + "T00:00:00");
+  return d.toLocaleDateString("it-IT", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric"
+  });
+}
+
+/**
  * Formatta un numero come valuta Euro.
  */
 function formatEuro(valore) {
