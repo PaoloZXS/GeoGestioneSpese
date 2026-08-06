@@ -182,23 +182,15 @@
     const firstYear = inizio.getFullYear();
     const lastYear = fine.getFullYear();
 
-    // Mese/anno corrente: le voci passate (prima del mese corrente) restano invariate
-    const now = new Date();
-    const annoCorrente = now.getFullYear();
-    const meseCorrente = now.getMonth();
-
     // Per ogni anno tra dataInizio e dataFine
     for (let year = firstYear; year <= lastYear; year++) {
-      if (year < annoCorrente) continue; // anni passati non toccati
-
       const speseAggiornate = getSpese(year);
       const entrateAggiornate = getEntrate(year);
 
-      // Mese di partenza: dal mese corrente in poi (per l'anno corrente)
-      const meseMin = year === annoCorrente ? meseCorrente : 0;
+      // Mese di partenza: sempre dal primo mese dell'anno
+      const meseMin = 0;
 
-      // Rimuovi le vecchie voci collegate SOLO a questo ricorrente,
-      // SOLO dal mese corrente in poi (le voci passate restano)
+      // Rimuovi le vecchie voci collegate SOLO a questo ricorrente
       for (let m = meseMin; m < 12; m++) {
         if (tipo === "uscite" && speseAggiornate[m]) {
           speseAggiornate[m] = speseAggiornate[m].filter(function (s) {
@@ -207,12 +199,12 @@
         }
         if (tipo === "entrate" && entrateAggiornate[m]) {
           entrateAggiornate[m] = entrateAggiornate[m].filter(function (e) {
-            return e.ricId !== ricId;
+            return e.ricId !== ricId || e.stato === "eseguita";
           });
         }
       }
 
-      // Rigenera le voci di questo ricorrente per l'anno (dal mese corrente in poi)
+      // Rigenera le voci di questo ricorrente per l'anno
       const firstMonth = Math.max(
         inizio.getFullYear() === year ? inizio.getMonth() : 0,
         meseMin
@@ -241,6 +233,7 @@
             data: dataStr,
             descrizione: r.descrizione,
             importo: r.importo,
+            stato: "preventivata",
             ricId: r.id
           });
         }

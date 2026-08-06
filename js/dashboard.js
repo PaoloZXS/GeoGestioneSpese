@@ -22,6 +22,7 @@
   const newEntrataData = document.getElementById("newEntrataData");
   const newEntrataDesc = document.getElementById("newEntrataDesc");
   const newEntrataImporto = document.getElementById("newEntrataImporto");
+  const newEntrataStato = document.getElementById("newEntrataStato");
   const addEntrataBtn = document.getElementById("addEntrataBtn");
 
   // Modale gruppo spese (voci aggregate)
@@ -136,23 +137,7 @@
     const entrate = getEntrateMese(currentYear, meseIndex);
     const totaleEntrate = entrate.reduce((sum, e) => sum + e.importo, 0);
 
-    const bilancio = totaleEntrate - totaleUscite;
-    const isZeroEntrate = totaleEntrate === 0;
-    const isNegative = bilancio < 0 && !isZeroEntrate;
-
-    let iconClass, extraClass;
-    if (isZeroEntrate) {
-      iconClass = "fa-equals";
-      extraClass = " zero";
-    } else if (isNegative) {
-      iconClass = "fa-equals";
-      extraClass = " negative";
-    } else {
-      iconClass = "fa-arrow-up";
-      extraClass = "";
-    }
-
-    // Header
+    // Header: solo il nome del mese + pulsanti compatti
     const header = document.createElement("div");
     header.className = "month-header";
     header.innerHTML = `
@@ -160,17 +145,17 @@
         <span class="month-title-text">Mese di: ${MESI[meseIndex]}</span>
       </span>
       <span class="month-header-right">
-        <span class="total-entrate${extraClass}" data-month="${meseIndex}">
-          <i class="fas ${iconClass}"></i> Entrate: ${formatEuro(totaleEntrate)}
-        </span>
+        <button class="add-entrata-btn" data-month="${meseIndex}" title="Nuova entrata">
+          <i class="fas fa-arrow-up"></i>
+        </button>
         <button class="add-expense-btn" data-month="${meseIndex}" title="Nuova spesa">
-          <i class="fas fa-plus-circle"></i>
+          <i class="fas fa-arrow-down"></i>
         </button>
       </span>
     `;
 
     header
-      .querySelector(".total-entrate")
+      .querySelector(".add-entrata-btn")
       .addEventListener("click", function (e) {
         e.stopPropagation();
         openEntrateModal(meseIndex);
@@ -184,30 +169,47 @@
 
     card.appendChild(header);
 
-    // Lista spese
+    // Lista righe: entrate + uscite (raggruppate per descrizione/stato),
+    // ordinate per data
     const list = document.createElement("div");
     list.className = "expense-list";
     list.dataset.month = meseIndex;
 
-    if (speseOrdinate.length === 0) {
+    const righe = [];
+    entrate.forEach((e) =>
+      righe.push({ tipo: "entrata", data: e.data, item: e })
+    );
+    raggruppaSpese(speseOrdinate).forEach((gruppo) => {
+      righe.push({ tipo: "uscita", data: gruppo[0].data, gruppo: gruppo });
+    });
+    righe.sort((a, b) => a.data.localeCompare(b.data));
+
+    if (righe.length === 0) {
       const empty = document.createElement("div");
       empty.className = "empty-month";
-      empty.textContent = "Nessuna spesa";
+      empty.textContent = "Nessuna voce";
       list.appendChild(empty);
     } else {
-      raggruppaSpese(speseOrdinate).forEach((gruppo) => {
-        const item = createExpenseGroupItem(gruppo, meseIndex);
-        list.appendChild(item);
+      righe.forEach((r) => {
+        list.appendChild(
+          r.tipo === "entrata"
+            ? createEntrataItem(r.item, meseIndex)
+            : createExpenseGroupItem(r.gruppo, meseIndex)
+        );
       });
     }
     card.appendChild(list);
 
-    // Totale
+    // Totale: "Totali:" a sinistra, entrate/uscite/saldo a destra
+    const saldo = totaleEntrate - totaleUscite;
+    const saldoClasse = saldo >= 0 ? "positivo" : "negativo";
     const totalDiv = document.createElement("div");
     totalDiv.className = "month-total";
     totalDiv.innerHTML = `
-      <span>Totale Uscite</span>
-      <span>${formatEuro(totaleUscite)}</span>
+      <span class="mt-desc">Totali:</span>
+      <span class="mt-entrate">E. ${formatEuro(totaleEntrate)}</span>
+      <span class="mt-uscite">U. ${formatEuro(totaleUscite)}</span>
+      <span class="mt-saldo ${saldoClasse}">S: ${formatEuro(saldo)}</span>
     `;
     card.appendChild(totalDiv);
 
@@ -241,20 +243,18 @@
     const stato = prima.stato;
     const totale = gruppo.reduce((s, x) => s + x.importo, 0);
     const n = gruppo.length;
-    const statoLabel = stato.charAt(0).toUpperCase() + stato.slice(1);
-    const dataStr = formatDataBreve(prima.data);
     const dettaglio = gruppo
       .map((x) => `${formatDataBreve(x.data)}: ${formatEuro(x.importo)}`)
       .join(" · ");
 
     const div = document.createElement("div");
-    div.className = `expense-item status-${stato} merged`;
+    div.className = `expense-item uscita-row status-${stato} merged`;
     div.title = `${n} voci: ${dettaglio}`;
+    div.dataset.type = "uscita";
     div.innerHTML = `
-      <span class="data-text">${dataStr}</span>
       <span class="desc">${prima.descrizione}</span>
-      <span class="importo">${formatEuro(totale)}</span>
-      <span class="badge-stato ${stato}">${statoLabel}</span>
+      <span class="importo entrata"></span>
+      <span class="importo uscita">${formatEuro(totale)}</span>
     `;
     // Dati per il click delegato sul grid
     div.dataset.month = meseIndex;
@@ -448,29 +448,49 @@
 
   function createExpenseItem(spesa, meseIndex) {
     const div = document.createElement("div");
-    div.className = `expense-item status-${spesa.stato}`;
-    div.draggable = true;
-    div.dataset.expenseId = spesa.id;
+    div.className = `expense-item uscita-row status-${spesa.stato}`;
+    div.dataset.type = "uscita";
+    div.dataset.id = spesa.id;
     div.dataset.month = meseIndex;
 
-    const dataStr = formatDataBreve(spesa.data);
-    const statoLabel =
-      spesa.stato.charAt(0).toUpperCase() + spesa.stato.slice(1);
-
     div.innerHTML = `
-      <span class="data-text">${dataStr}</span>
       <span class="desc">${spesa.descrizione}</span>
-      <span class="importo">${formatEuro(spesa.importo)}</span>
-      <span class="badge-stato ${spesa.stato}">${statoLabel}</span>
+      <span class="importo entrata"></span>
+      <span class="importo uscita">${formatEuro(spesa.importo)}</span>
     `;
 
     // Click sulla riga -> modifica (delegato sul grid)
+    attachDrag(div, "uscita", spesa.id, meseIndex);
 
-    // Drag & drop
+    return div;
+  }
+
+  function createEntrataItem(entrata, meseIndex) {
+    const div = document.createElement("div");
+    const stato = entrata.stato || "preventivata";
+    div.className = `expense-item entrata-row status-${stato}`;
+    div.dataset.type = "entrata";
+    div.dataset.id = entrata.id;
+    div.dataset.month = meseIndex;
+
+    div.innerHTML = `
+      <span class="desc">${entrata.descrizione}</span>
+      <span class="importo entrata">${formatEuro(entrata.importo)}</span>
+      <span class="importo uscita"></span>
+    `;
+
+    // Click sulla riga -> modifica entrata (delegato sul grid)
+    attachDrag(div, "entrata", entrata.id, meseIndex);
+
+    return div;
+  }
+
+  function attachDrag(div, tipo, id, meseIndex) {
+    div.draggable = true;
     div.addEventListener("dragstart", function (e) {
       e.dataTransfer.setData(
         "text/plain",
-        JSON.stringify({ expenseId: spesa.id, fromMonth: meseIndex })
+        JSON.stringify({ tipo: tipo, id: id, fromMonth: meseIndex })
       );
       e.dataTransfer.effectAllowed = "move";
       div.classList.add("dragging");
@@ -481,8 +501,6 @@
         .querySelectorAll(".month-card.drag-over")
         .forEach((c) => c.classList.remove("drag-over"));
     });
-
-    return div;
   }
 
   // =============================================
@@ -499,6 +517,7 @@
     entrateModal.classList.add("active");
     newEntrataDesc.value = "";
     newEntrataImporto.value = "";
+    if (newEntrataStato) newEntrataStato.value = "preventivata";
     newEntrataDesc.focus();
   }
 
@@ -550,11 +569,14 @@
       return;
     }
 
+    const stato = newEntrataStato ? newEntrataStato.value : "preventivata";
+
     await addEntrata(currentYear, currentEntrateMonth, {
       id: generaId("entrata"),
       data: data,
       descrizione: desc,
-      importo: importo
+      importo: importo,
+      stato: stato || "preventivata"
     });
 
     renderEntrateList();
@@ -584,8 +606,9 @@
     editImportiSection.style.display = "block";
     editAddImporto.value = entrata.importo;
     editData.value = entrata.data;
-    // Nascondi stato per entrate
-    editStatoSection.style.display = "none";
+    // Mostra stato anche per le entrate
+    editStatoSection.style.display = "block";
+    editStato.value = entrata.stato || "preventivata";
     // Mostra sezione ricorrente se ha ricId
     if (entrata.ricId) {
       editRicorrenteSection.style.display = "block";
@@ -712,7 +735,8 @@
           {
             descrizione: nuovaDesc,
             importo: nuovoImporto,
-            data: nuovaData
+            data: nuovaData,
+            stato: nuovoStato
           }
         );
       } else {
@@ -737,6 +761,7 @@
       // SOLO dopo che l'utente preme OK sulla notifica
       hideSpinner();
       renderPlanning();
+      window.dispatchEvent(new CustomEvent("dataReady"));
       await showAlert("Salvataggio completato!");
       closeEditModal();
     } catch (e) {
@@ -819,13 +844,22 @@
         if (data.fromMonth === toMonth) return;
         const overlay = document.getElementById("spinnerOverlay");
         if (overlay) overlay.classList.add("active");
-        const ok = await moveSpesa(
-          data.expenseId,
-          currentYear,
-          data.fromMonth,
-          currentYear,
-          toMonth
-        );
+        const ok =
+          data.tipo === "entrata"
+            ? await moveEntrata(
+                data.id,
+                currentYear,
+                data.fromMonth,
+                currentYear,
+                toMonth
+              )
+            : await moveSpesa(
+                data.id,
+                currentYear,
+                data.fromMonth,
+                currentYear,
+                toMonth
+              );
         if (overlay) overlay.classList.remove("active");
         if (ok) renderPlanning();
       } catch (err) {
@@ -870,8 +904,10 @@
         ids = JSON.parse(item.dataset.groupIds || "[]");
       } catch (_) {}
       openGruppoModal(meseIndex, ids);
+    } else if (item.dataset.type === "entrata") {
+      openEditEntrataModal(meseIndex, item.dataset.id);
     } else {
-      openEditModal(meseIndex, item.dataset.expenseId);
+      openEditModal(meseIndex, item.dataset.id);
     }
   });
 

@@ -23,6 +23,7 @@
   let btnConferma = null;
   let btnAnnulla = null;
   let btnEliminaCategorie = null;
+  let btnEliminaTutte = null;
 
   // Elementi DOM del tab Storico (creati dinamicamente all'apertura)
   let tabStorico = null;
@@ -256,6 +257,9 @@
     if (btnEliminaCategorie) {
       btnEliminaCategorie.disabled = categorieSelezionate.size === 0;
     }
+    if (btnEliminaTutte) {
+      btnEliminaTutte.disabled = gruppi.length === 0;
+    }
   }
 
   // =============================================
@@ -408,6 +412,34 @@
     popolaLista();
   }
 
+  async function eliminaTutteCategorie() {
+    if (gruppi.length === 0) return;
+
+    const ok = await showConfirm(
+      "Eliminare TUTTE le categorie e tutte le voci correlate?"
+    );
+    if (!ok) return;
+
+    // Raccoglie TUTTI gli ID di tutte le voci di tutte le categorie
+    const ids = new Set();
+    gruppi.forEach((g) => {
+      if (g) g.voci.forEach((v) => ids.add(v.id));
+    });
+    selezione = ids;
+    await cancellaSelezionati();
+
+    // Resetta selezioni
+    categorieSelezionate = new Set();
+    selezione = new Set();
+
+    await showAlert(
+      "Tutte le categorie e le voci correlate sono state eliminate dal planning."
+    );
+
+    window.dispatchEvent(new CustomEvent("dataReady"));
+    popolaLista();
+  }
+
   // =============================================
   // TAB CANCELLAZIONE — costruzione dinamica + accesso protetto
   // =============================================
@@ -420,6 +452,9 @@
         <div class="elenco-footer toolbar-top">
           <button class="btn-cancella" id="btnEliminaCategorie" disabled>
             <i class="fas fa-trash"></i> Elimina Categorie Selezionate
+          </button>
+          <button class="btn-cancella" id="btnEliminaTutte" disabled>
+            <i class="fas fa-trash"></i> Elimina tutte le categorie
           </button>
           <div class="elenco-footer-btns">
             <button class="btn-annulla" id="btnAnnulla">Annulla</button>
@@ -460,6 +495,7 @@
     btnConferma = document.getElementById("btnConfermaCancella");
     btnAnnulla = document.getElementById("btnAnnulla");
     btnEliminaCategorie = document.getElementById("btnEliminaCategorie");
+    btnEliminaTutte = document.getElementById("btnEliminaTutte");
 
     // Eventi contenuto
     btnSelezionaTutto.addEventListener("click", function () {
@@ -483,6 +519,7 @@
       renderDettaglio();
     });
     btnEliminaCategorie.addEventListener("click", eliminaCategorieSelezionate);
+    btnEliminaTutte.addEventListener("click", eliminaTutteCategorie);
     aggiornaBtnCategorie();
   }
 

@@ -52,9 +52,13 @@ CREATE TABLE IF NOT EXISTS entrate (
   data DATE NOT NULL,
   descrizione TEXT NOT NULL,
   importo NUMERIC NOT NULL,
+  stato TEXT NOT NULL DEFAULT 'preventivata' CHECK (stato IN ('preventivata', 'eseguita', 'scaduta')),
   ric_id TEXT REFERENCES ricorrenti(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Colonna stato per entrate (idempotente, per DB già esistenti)
+ALTER TABLE entrate ADD COLUMN IF NOT EXISTS stato TEXT NOT NULL DEFAULT 'preventivata' CHECK (stato IN ('preventivata', 'eseguita', 'scaduta'));
 
 ALTER TABLE entrate ENABLE ROW LEVEL SECURITY;
 

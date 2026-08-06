@@ -59,19 +59,34 @@ let _ricorrentiCache = null;
 // CARICAMENTO DA data.json (fallback locale)
 // =============================================
 
+// Assegna "preventivata" alle voci senza stato (dati vecchi/legacy)
+function normalizzaStato(mesi) {
+  for (let m = 0; m < 12; m++) {
+    const lista = mesi[m];
+    if (!lista) continue;
+    for (const v of lista) {
+      if (!v.stato) v.stato = "preventivata";
+    }
+  }
+}
+
 function caricaDaJson(dati) {
   // --- Spese ---
   _speseCache = {};
   if (dati.spese) {
     for (const anno of Object.keys(dati.spese)) {
-      _speseCache[anno] = JSON.parse(dati.spese[anno]);
+      const mesi = JSON.parse(dati.spese[anno]);
+      normalizzaStato(mesi);
+      _speseCache[anno] = mesi;
     }
   }
   // --- Entrate ---
   _entrateCache = {};
   if (dati.entrate) {
     for (const anno of Object.keys(dati.entrate)) {
-      _entrateCache[anno] = JSON.parse(dati.entrate[anno]);
+      const mesi = JSON.parse(dati.entrate[anno]);
+      normalizzaStato(mesi);
+      _entrateCache[anno] = mesi;
     }
   }
   // --- Categorie ---
@@ -126,13 +141,14 @@ async function caricaDaSupabase() {
         data: e.data,
         descrizione: e.descrizione,
         importo: e.importo,
+        stato: e.stato || "preventivata",
         origine: e.origine || "desktop",
         vistoDaDesktop: e.visto_da_desktop || false,
         ...(e.ric_id && { ricId: e.ric_id })
       });
     }
 
-    // --- Auto-scadenza: spese con data passata diventano "scaduta" ---
+    // --- Auto-scadenza: spese ed entrate con data passata diventano "scaduta" ---
     const oggi = new Date();
     oggi.setHours(0, 0, 0, 0);
     for (const year of Object.keys(_speseCache)) {
@@ -144,6 +160,20 @@ async function caricaDaSupabase() {
             const dataSpesa = new Date(s.data + "T00:00:00");
             if (dataSpesa < oggi) {
               s.stato = "scaduta";
+            }
+          }
+        }
+      }
+    }
+    for (const year of Object.keys(_entrateCache)) {
+      for (let m = 0; m < 12; m++) {
+        const lista = _entrateCache[year][m];
+        if (!lista) continue;
+        for (const e of lista) {
+          if (e.stato === "preventivata") {
+            const dataEntrata = new Date(e.data + "T00:00:00");
+            if (dataEntrata < oggi) {
+              e.stato = "scaduta";
             }
           }
         }
@@ -413,6 +443,30 @@ async function deleteEntrata(year, monthIdx, entrataId) {
   return true;
 }
 
+async function moveEntrata(entrataId, fromYear, fromMonth, toYear, toMonth) {
+  const fromAll = getEntrate(fromYear);
+  const toAll = toYear === fromYear ? fromAll : getEntrate(toYear);
+
+  if (!fromAll[fromMonth]) return false;
+  const idx = fromAll[fromMonth].findIndex((e) => e.id === entrataId);
+  if (idx === -1) return false;
+
+  const entrata = fromAll[fromMonth].splice(idx, 1)[0];
+  await saveEntrate(fromYear, fromAll);
+
+  // Aggiorna la data al mese di destinazione
+  const day = 15;
+  entrata.data = `${toYear}-${String(toMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+
+  if (!toAll[toMonth]) toAll[toMonth] = [];
+  toAll[toMonth].push(entrata);
+
+  if (toYear !== fromYear) {
+    await saveEntrate(toYear, toAll);
+  }
+  return true;
+}
+
 // =============================================
 // GESTIONE CATEGORIE
 // =============================================
@@ -524,10 +578,11 @@ function calcolaDataFineMese(year, month, giorno) {
 }
 
 /**
- * Applica i ricorrenti all'anno corrente, creando/aggiornando spese/entrate.
- * Prima rimuove TUTTE le vecchie spese/entrate collegate a ricorrenti (ricId),
- * poi rigenera tutto da capo. Accumula le modifiche e le salva su Supabase
- * in un'unica chiamata per tipo, per evitare race condition e sync multipli.
+ * Applica i ricorrenti a tutti gli anni coperti (tra dataInizio e dataFine),
+ * creando/aggiornando spese/entrate. Prima rimuove TUTTE le vecchie
+ * spese/entrate collegate a ricorrenti (ricId), poi rigenera tutto da capo.
+ * Accumula le modifiche e le salva su Supabase in un'unica chiamata per tipo,
+ * per evitare race condition e sync multipli.
  */
 async function applicaRicorrenti(anno) {
   const ric = getRicorrenti();
@@ -545,23 +600,15 @@ async function applicaRicorrenti(anno) {
     }
   }
 
-  // Mese/anno corrente: le voci passate (prima del mese corrente) restano invariate
-  const now = new Date();
-  const annoCorrente = now.getFullYear();
-  const meseCorrente = now.getMonth();
-
   // Per ogni anno nel range: rimuovi vecchie voci ricorrenti e rigenera
   for (let year = minYear; year <= maxYear; year++) {
-    if (year < annoCorrente) continue; // anni passati non toccati
-
     const speseAggiornate = getSpese(year);
     const entrateAggiornate = getEntrate(year);
 
-    // Mese di partenza: dal mese corrente in poi (per l'anno corrente)
-    const meseMin = year === annoCorrente ? meseCorrente : 0;
+    // Mese di partenza: sempre dal primo mese dell'anno
+    const meseMin = 0;
 
-    // --- Rimuovi vecchie voci collegate a ricorrenti (solo se non eseguite),
-    //     SOLO dal mese corrente in poi ---
+    // --- Rimuovi vecchie voci collegate a ricorrenti (solo se non eseguite) ---
     for (let m = meseMin; m < 12; m++) {
       if (speseAggiornate[m]) {
         speseAggiornate[m] = speseAggiornate[m].filter(
@@ -569,11 +616,13 @@ async function applicaRicorrenti(anno) {
         );
       }
       if (entrateAggiornate[m]) {
-        entrateAggiornate[m] = entrateAggiornate[m].filter((e) => !e.ricId);
+        entrateAggiornate[m] = entrateAggiornate[m].filter(
+          (e) => !e.ricId || e.stato === "eseguita"
+        );
       }
     }
 
-    // --- Rigenera da capo per questo anno (dal mese corrente in poi) ---
+    // --- Rigenera da capo per questo anno ---
     for (const tipo of ["entrate", "uscite"]) {
       for (const r of ric[tipo]) {
         const giorno = r.giorno || 1;
@@ -607,6 +656,7 @@ async function applicaRicorrenti(anno) {
               data: dataStr,
               descrizione: r.descrizione,
               importo: r.importo,
+              stato: "preventivata",
               ricId: r.id
             });
           }
@@ -681,6 +731,7 @@ async function syncEntrateSupabase(year, mesi) {
           data: e.data,
           descrizione: e.descrizione,
           importo: e.importo,
+          stato: e.stato || "preventivata",
           origine: e.origine || "desktop",
           visto_da_desktop: e.vistoDaDesktop || false
         };

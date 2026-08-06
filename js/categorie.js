@@ -10,6 +10,18 @@
   const catInputEntrate = document.getElementById("catInputEntrate");
   const catInputUscite = document.getElementById("catInputUscite");
 
+  // Spinner di caricamento (stesso pattern di programmazione.js)
+  const spinnerOverlay = document.getElementById("spinnerOverlay");
+  const spinnerMsg = document.getElementById("spinnerMsg");
+
+  function showSpinner(msg) {
+    if (spinnerMsg) spinnerMsg.textContent = msg;
+    if (spinnerOverlay) spinnerOverlay.classList.add("active");
+  }
+  function hideSpinner() {
+    if (spinnerOverlay) spinnerOverlay.classList.remove("active");
+  }
+
   // =============================================
   // RENDER
   // =============================================
@@ -63,9 +75,16 @@
           const confirmed = await showConfirm(
             `Eliminare la categoria "${catItem.descrizione}"?`
           );
-          if (confirmed) {
+          if (!confirmed) return;
+          showSpinner("Attendere prego...");
+          try {
             await deleteCategoria(tipo, realIdx);
+            hideSpinner();
             renderCategorie();
+          } catch (err) {
+            console.warn("Errore eliminazione categoria:", err.message);
+            hideSpinner();
+            await showAlert("Errore durante l'eliminazione della categoria");
           }
         });
 
@@ -115,10 +134,19 @@
   async function aggiungiCategoria(tipo, inputEl) {
     const val = inputEl.value.trim();
     if (!val) return;
-    await addCategoria(tipo, val);
-    inputEl.value = "";
-    renderCategorie();
-    inputEl.focus();
+    showSpinner("Attendere prego...");
+    try {
+      await addCategoria(tipo, val);
+      hideSpinner();
+      inputEl.value = "";
+      renderCategorie();
+      inputEl.focus();
+    } catch (e) {
+      console.warn("Errore aggiunta categoria:", e.message);
+      hideSpinner();
+      await showAlert("Errore durante l'aggiunta della categoria");
+      inputEl.focus();
+    }
   }
 
   // =============================================

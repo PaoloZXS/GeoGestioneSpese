@@ -267,6 +267,7 @@ class _InsertScreenState extends State<InsertScreen> {
           'data': dataStr,
           'descrizione': descrizione,
           'importo': importo,
+          'stato': 'preventivata',
           'ric_id': ricId,
           'origine': 'mobile',
           'visto_da_desktop': false,

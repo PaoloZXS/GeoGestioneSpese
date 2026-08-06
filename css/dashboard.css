@@ -2,6 +2,39 @@
    DASHBOARD — Planning Grid & Month Cards
    ============================================= */
 
+/* ---- LEGENDA STATI (top-bar) ---- */
+.stato-legend {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-left: 24px;
+  margin-right: auto;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.stato-legend .legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.stato-legend .legend-dot {
+  width: 4px;
+  height: 14px;
+  border-radius: 4px;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.stato-legend .legend-dot.eseguita {
+  background: #22c55e;
+}
+.stato-legend .legend-dot.preventivata {
+  background: #3b82f6;
+}
+.stato-legend .legend-dot.scaduta {
+  background: #ef4444;
+}
+
 /* Griglia: 3 righe, 4 colonne */
 .planning-grid {
   display: grid;
@@ -49,9 +82,7 @@
   background: transparent;
   border-top-color: var(--card-current-border);
 }
-.month-card.current-month .expense-item {
-  background: transparent;
-}
+/* Nel mese corrente le righe mantengono i colori di tipo (entrate/uscite) */
 .month-card.current-month .expense-item:hover {
   background: var(--expense-hover);
 }
@@ -82,65 +113,45 @@
   gap: 8px;
   flex-shrink: 0;
 }
-.month-header .total-entrate {
-  font-weight: 600;
-  font-size: 13px;
-  color: var(--green-text);
-  background: var(--green-light);
-  padding: 2px 12px;
-  border-radius: 20px;
-  cursor: pointer;
-  transition: 0.2s;
-  white-space: nowrap;
-  border: 1px solid var(--green-border);
-}
-.month-header .total-entrate:hover {
-  background: rgba(34, 197, 94, 0.25);
-  transform: scale(1.02);
-}
-.month-header .total-entrate.negative {
-  color: var(--red-text);
-  background: var(--red-light);
-  border-color: var(--red-border);
-}
-.month-header .total-entrate.negative:hover {
-  background: rgba(239, 68, 68, 0.2);
-}
-.month-header .total-entrate.zero {
-  color: var(--blue);
-  background: var(--blue-light);
-  border-color: var(--blue-border);
-}
-.month-header .total-entrate.zero:hover {
-  background: rgba(59, 130, 246, 0.25);
-}
-.month-header .total-entrate i {
-  margin-right: 4px;
-  font-size: 11px;
-}
-
+.month-header .add-entrata-btn,
 .month-header .add-expense-btn {
-  background: transparent;
+  width: 26px;
+  height: 26px;
   border: none;
-  font-size: 18px;
-  color: var(--blue);
-  cursor: pointer;
-  padding: 0 4px;
   border-radius: 50%;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: #fff;
+  padding: 0;
   transition: 0.15s;
-  margin-left: 6px;
   line-height: 1;
-  vertical-align: middle;
+  flex-shrink: 0;
+}
+.month-header .add-entrata-btn {
+  background: var(--green);
+}
+.month-header .add-entrata-btn:hover {
+  background: var(--green-hover);
+  transform: scale(1.1);
+}
+.month-header .add-expense-btn {
+  background: var(--red);
 }
 .month-header .add-expense-btn:hover {
-  background: rgba(59, 130, 246, 0.15);
-  transform: scale(1.15);
+  background: var(--red-hover);
+  transform: scale(1.1);
 }
 
 /* ---- EXPENSE LIST ---- */
 .expense-list {
   flex: 1;
   overflow-y: auto;
+  /* Riserva sempre lo spazio della scrollbar così le righe non si restringono
+     rispetto al footer e le colonne restano allineate anche quando si scorre */
+  scrollbar-gutter: stable;
   padding: 6px 6px 4px 6px;
   display: flex;
   flex-direction: column;
@@ -160,7 +171,7 @@
   border-radius: 8px;
 }
 
-/* ---- EXPENSE ITEM (riga) ---- */
+/* ---- EXPENSE ITEM (riga) — layout 5 colonne ---- */
 .expense-item {
   background: transparent;
   border-radius: 8px;
@@ -168,7 +179,7 @@
   border: 1px solid var(--expense-border);
   border-left-width: 4px;
   display: grid;
-  grid-template-columns: 45px 1fr 65px 75px;
+  grid-template-columns: minmax(0, 1fr) 66px 66px;
   align-items: center;
   gap: 3px;
   cursor: pointer;
@@ -187,6 +198,24 @@
   cursor: help;
 }
 
+/* Righe colorate per tipo: entrate verde chiaro, uscite rosso chiaro.
+   Il bordo laterale segue lo stato (eseguita=verde, preventivata=blu,
+   scaduta=rosso), sia per le uscite sia per le entrate. */
+.expense-item.entrata-row {
+  background: var(--green-light);
+  border-left-color: var(--green);
+}
+.expense-item.entrata-row .desc,
+.expense-item.entrata-row .importo.entrata {
+  color: var(--green-text);
+}
+.expense-item.uscita-row {
+  background: var(--red-light);
+}
+.expense-item.uscita-row .desc,
+.expense-item.uscita-row .importo.uscita {
+  color: var(--red-text);
+}
 .expense-item.status-eseguita {
   border-left-color: var(--green);
 }
@@ -197,13 +226,6 @@
   border-left-color: var(--red);
 }
 
-.expense-item .data-text {
-  font-size: 10px;
-  color: var(--text-secondary);
-  font-weight: 500;
-  white-space: nowrap;
-  text-align: left;
-}
 .expense-item .desc {
   font-weight: 500;
   font-size: 12px;
@@ -217,7 +239,6 @@
 .expense-item .importo {
   font-weight: 600;
   font-size: 11px;
-  color: var(--text-primary);
   background: transparent;
   padding: 0 4px;
   white-space: nowrap;
@@ -225,64 +246,57 @@
   justify-self: end;
   width: 100%;
 }
-.expense-item .badge-stato {
-  font-size: 7px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.2px;
-  background: var(--badge-bg);
-  padding: 1px 5px;
-  border-radius: 20px;
-  color: #334155;
-  white-space: nowrap;
-  text-align: right;
-  justify-self: end;
+.expense-item .importo.entrata {
+  color: var(--green);
 }
-.expense-item .badge-stato.eseguita {
-  background: var(--badge-eseguita-bg);
-  color: var(--green-dark);
-}
-.expense-item .badge-stato.preventivata {
-  background: var(--badge-preventivata-bg);
-  color: #1e40af;
-}
-.expense-item .badge-stato.scaduta {
-  background: var(--badge-scaduta-bg);
-  color: var(--red-dark);
+.expense-item .importo.uscita {
+  color: var(--red);
 }
 
-/* Icone modifica / elimina */
-/* delete-btn rimosso - si elimina dal modale */
-
-/* Spese scadute - tutto rosso */
-.expense-item.status-scaduta .data-text,
-.expense-item.status-scaduta .desc,
-.expense-item.status-scaduta .importo {
-  color: var(--red-text);
-}
-
-/* ---- MONTH TOTAL ---- */
+/* ---- MONTH TOTAL (Totali:, E., U., S: distribuiti su tutto lo spazio) ---- */
 .month-total {
-  padding: 4px 14px 6px 14px;
+  padding: 4px 14px 4px 14px;
   border-top: 2px solid var(--blue-border);
   margin-top: auto;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 11px;
   color: var(--text-primary);
   display: flex;
+  align-items: center;
   justify-content: space-between;
+  gap: 12px;
   background: transparent;
   border-radius: 0 0 var(--radius-xl) var(--radius-xl);
   flex-shrink: 0;
   min-height: 32px;
-  align-items: center;
 }
-.month-total span:last-child {
-  background: transparent;
-  padding: 0 4px;
-  color: var(--text-dark);
-  min-width: 50px;
+.month-total .mt-desc {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.month-total .mt-entrate {
   text-align: right;
+  color: var(--green);
+  white-space: nowrap;
+}
+.month-total .mt-uscite {
+  text-align: right;
+  color: var(--red);
+  white-space: nowrap;
+}
+.month-total .mt-saldo {
+  text-align: right;
+  white-space: nowrap;
+  font-weight: 700;
+}
+.month-total .mt-saldo.positivo {
+  color: var(--green);
+}
+.month-total .mt-saldo.negativo {
+  color: var(--red);
 }
 
 .empty-month {
@@ -550,20 +564,19 @@
 /* ---- RESPONSIVE DASHBOARD ---- */
 @media (max-width: 1200px) {
   .row-months {
+    grid-template-columns: repeat(3, 1fr);
     gap: 10px;
   }
   .planning-grid {
+    grid-template-rows: repeat(4, 1fr);
     gap: 10px;
   }
   .page-wrapper {
     padding: 12px 14px 14px 14px;
   }
   .expense-item {
-    grid-template-columns: 40px 1fr 55px 65px;
+    grid-template-columns: minmax(0, 1fr) 56px 56px;
     gap: 2px;
-  }
-  .expense-item .data-text {
-    font-size: 9px;
   }
   .expense-item .desc {
     font-size: 11px;
@@ -571,8 +584,9 @@
   .expense-item .importo {
     font-size: 10px;
   }
-  .expense-item .badge-stato {
-    font-size: 6px;
+  .month-total {
+    gap: 8px;
+    font-size: 10px;
   }
   .month-header .month-title {
     font-size: 13px;
@@ -593,12 +607,7 @@
   }
 }
 @media (max-width: 900px) {
-  .row-months {
-    grid-template-columns: repeat(3, 1fr);
-  }
-  .planning-grid {
-    grid-template-rows: repeat(4, 1fr);
-  }
+  /* Il layout a 3 colonne è già gestito da max-width: 1200px */
 }
 @media (max-width: 700px) {
   .row-months {
