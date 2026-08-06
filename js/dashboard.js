@@ -137,12 +137,19 @@
     const entrate = getEntrateMese(currentYear, meseIndex);
     const totaleEntrate = entrate.reduce((sum, e) => sum + e.importo, 0);
 
-    // Header: solo il nome del mese + pulsanti compatti
+    // Saldo mensile (mostrato nell'header, dopo il nome del mese)
+    const saldo = totaleEntrate - totaleUscite;
+    const saldoClasse = saldo >= 0 ? "positivo" : "negativo";
+    const segnoSaldo = saldo >= 0 ? "+" : "-";
+    const saldoHeader = `${segnoSaldo}${formatEuro(Math.abs(saldo))}`;
+
+    // Header: nome del mese + saldo + pulsanti compatti
     const header = document.createElement("div");
     header.className = "month-header";
     header.innerHTML = `
       <span class="month-title">
         <span class="month-title-text">Mese di: ${MESI[meseIndex]}</span>
+        <span class="month-saldo ${saldoClasse}">${saldoHeader}</span>
       </span>
       <span class="month-header-right">
         <button class="add-entrata-btn" data-month="${meseIndex}" title="Nuova entrata">
@@ -200,16 +207,13 @@
     }
     card.appendChild(list);
 
-    // Totale: "Totali:" a sinistra, entrate/uscite/saldo a destra
-    const saldo = totaleEntrate - totaleUscite;
-    const saldoClasse = saldo >= 0 ? "positivo" : "negativo";
+    // Totale: sole entrate/uscite allineate sotto le colonne
     const totalDiv = document.createElement("div");
     totalDiv.className = "month-total";
     totalDiv.innerHTML = `
-      <span class="mt-desc">Totali:</span>
-      <span class="mt-entrate">E. ${formatEuro(totaleEntrate)}</span>
-      <span class="mt-uscite">U. ${formatEuro(totaleUscite)}</span>
-      <span class="mt-saldo ${saldoClasse}">S: ${formatEuro(saldo)}</span>
+      <span class="mt-desc"></span>
+      <span class="mt-entrate">${formatEuro(totaleEntrate)}</span>
+      <span class="mt-uscite">${formatEuro(totaleUscite)}</span>
     `;
     card.appendChild(totalDiv);
 

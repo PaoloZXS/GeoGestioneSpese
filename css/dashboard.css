@@ -103,9 +103,23 @@
   font-size: 14px;
   color: var(--text-primary);
   min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 .month-header .month-title .month-title-text {
   white-space: nowrap;
+}
+.month-header .month-saldo {
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.month-header .month-saldo.positivo {
+  color: var(--green);
+}
+.month-header .month-saldo.negativo {
+  color: var(--red);
 }
 .month-header .month-header-right {
   display: flex;
@@ -253,18 +267,18 @@
   color: var(--red);
 }
 
-/* ---- MONTH TOTAL (Totali:, E., U., S: distribuiti su tutto lo spazio) ---- */
+/* ---- MONTH TOTAL (entrate/uscite allineate sotto le colonne) ---- */
 .month-total {
-  padding: 4px 14px 4px 14px;
+  padding: 4px 15px 4px 14px;
   border-top: 2px solid var(--blue-border);
   margin-top: auto;
   font-weight: 600;
   font-size: 11px;
   color: var(--text-primary);
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 66px 66px;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 3px;
   background: transparent;
   border-radius: 0 0 var(--radius-xl) var(--radius-xl);
   flex-shrink: 0;
@@ -273,7 +287,6 @@
 .month-total .mt-desc {
   text-align: left;
   font-size: 11px;
-  font-weight: 700;
   color: var(--text-secondary);
   white-space: nowrap;
 }
@@ -286,17 +299,6 @@
   text-align: right;
   color: var(--red);
   white-space: nowrap;
-}
-.month-total .mt-saldo {
-  text-align: right;
-  white-space: nowrap;
-  font-weight: 700;
-}
-.month-total .mt-saldo.positivo {
-  color: var(--green);
-}
-.month-total .mt-saldo.negativo {
-  color: var(--red);
 }
 
 .empty-month {
@@ -585,7 +587,8 @@
     font-size: 10px;
   }
   .month-total {
-    gap: 8px;
+    grid-template-columns: minmax(0, 1fr) 56px 56px;
+    gap: 2px;
     font-size: 10px;
   }
   .month-header .month-title {
