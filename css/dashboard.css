@@ -213,9 +213,11 @@
 }
 
 /* Righe: sfondo e bordo in base allo stato (sia entrate sia uscite).
-   Eseguita=verde chiaro, Preventivata=blu, Scaduta=rosso chiaro. Testo nero. */
+   Eseguita = nessuno sfondo (come la card) + bordo verde.
+   Preventivata = blu chiaro + bordo blu. Scaduta = rosso chiaro + bordo rosso.
+   Testo nero. */
 .expense-item.status-eseguita {
-  background: #dcfce7;
+  background: transparent;
   border-left-color: var(--green);
 }
 .expense-item.status-preventivata {
@@ -225,6 +227,15 @@
 .expense-item.status-scaduta {
   background: #fee2e2;
   border-left-color: var(--red);
+}
+
+/* Eseguita: importo colorato (verde per le entrate, rosso per le uscite).
+   Preventivata/Scaduta: importo nero (base .importo). */
+.expense-item.entrata-row.status-eseguita .importo.entrata {
+  color: #16a34a;
+}
+.expense-item.uscita-row.status-eseguita .importo.uscita {
+  color: #dc2626;
 }
 
 .expense-item .desc {
