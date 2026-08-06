@@ -212,38 +212,25 @@
   cursor: help;
 }
 
-/* Righe colorate per tipo: entrate verde chiaro, uscite rosso chiaro.
-   Il bordo laterale segue lo stato (eseguita=verde, preventivata=blu,
-   scaduta=rosso), sia per le uscite sia per le entrate. */
-.expense-item.entrata-row {
-  background: var(--green-light);
-  border-left-color: var(--green);
-}
-.expense-item.entrata-row .desc,
-.expense-item.entrata-row .importo.entrata {
-  color: var(--green-text);
-}
-.expense-item.uscita-row {
-  background: var(--red-light);
-}
-.expense-item.uscita-row .desc,
-.expense-item.uscita-row .importo.uscita {
-  color: var(--red-text);
-}
+/* Righe: sfondo e bordo in base allo stato (sia entrate sia uscite).
+   Eseguita=verde chiaro, Preventivata=blu, Scaduta=rosso chiaro. Testo nero. */
 .expense-item.status-eseguita {
+  background: #dcfce7;
   border-left-color: var(--green);
 }
 .expense-item.status-preventivata {
+  background: #93c5fd;
   border-left-color: var(--blue);
 }
 .expense-item.status-scaduta {
+  background: #fee2e2;
   border-left-color: var(--red);
 }
 
 .expense-item .desc {
   font-weight: 500;
   font-size: 12px;
-  color: var(--text-primary);
+  color: #000;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -259,12 +246,7 @@
   text-align: right;
   justify-self: end;
   width: 100%;
-}
-.expense-item .importo.entrata {
-  color: var(--green);
-}
-.expense-item .importo.uscita {
-  color: var(--red);
+  color: #000;
 }
 
 /* ---- MONTH TOTAL (entrate/uscite allineate sotto le colonne) ---- */
@@ -292,11 +274,13 @@
 }
 .month-total .mt-entrate {
   text-align: right;
+  font-weight: 700;
   color: var(--green);
   white-space: nowrap;
 }
 .month-total .mt-uscite {
   text-align: right;
+  font-weight: 700;
   color: var(--red);
   white-space: nowrap;
 }

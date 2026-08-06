@@ -102,64 +102,6 @@
       </div>
     </div>
 
-    <!-- MODALE ENTRATE -->
-    <div class="modal-overlay" id="entrateModal">
-      <div class="modal-box entrate-modal">
-        <h3>
-          <span
-            ><i class="fas fa-coins" style="color: #16a34a"></i> Entrate -
-            <span id="entrateModalTitle">Gennaio 2026</span></span
-          >
-          <button class="close-modal-btn" id="closeEntrateModal">
-            &times;
-          </button>
-        </h3>
-        <div class="entrate-list" id="entrateList"></div>
-        <div class="entrate-total-bar" id="entrateTotalBar">
-          <span class="entrate-total-label">Totale entrate</span>
-          <span class="entrate-total-val" id="entrateTotalVal">€ 0.00</span>
-        </div>
-        <hr class="separator" />
-        <div class="add-entrata-form">
-          <div class="form-row">
-            <div class="field-group">
-              <label>Data</label>
-              <input type="date" id="newEntrataData" />
-            </div>
-            <div class="field-group grow">
-              <label>Descrizione</label>
-              <select id="newEntrataDesc">
-                <option value="">Seleziona una categoria...</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="field-group">
-              <label>Importo (€)</label>
-              <input
-                type="number"
-                id="newEntrataImporto"
-                placeholder="0.00"
-                step="0.01"
-                min="0"
-              />
-            </div>
-            <div class="field-group">
-              <label>Stato</label>
-              <select id="newEntrataStato">
-                <option value="eseguita">Eseguita</option>
-                <option value="preventivata" selected>Preventivata</option>
-                <option value="scaduta">Scaduta</option>
-              </select>
-            </div>
-            <button class="btn-add" id="addEntrataBtn">
-              <i class="fas fa-plus"></i> Aggiungi
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- MODALE MODIFICA SPESA -->
     <div class="modal-overlay" id="editModal">
       <div class="modal-box modifica">

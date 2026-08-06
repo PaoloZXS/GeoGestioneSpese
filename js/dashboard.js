@@ -6,24 +6,12 @@
   "use strict";
 
   let currentYear = getCurrentYear();
-  let currentEntrateMonth = -1;
 
   // ---- REFERENCES DOM ----
   const grid = document.getElementById("planningGrid");
   const annoLabel = document.getElementById("annoLabel");
   const prevYearBtn = document.getElementById("prevYearBtn");
   const nextYearBtn = document.getElementById("nextYearBtn");
-
-  // Modale entrate
-  const entrateModal = document.getElementById("entrateModal");
-  const entrateList = document.getElementById("entrateList");
-  const entrateModalTitle = document.getElementById("entrateModalTitle");
-  const closeEntrateModal = document.getElementById("closeEntrateModal");
-  const newEntrataData = document.getElementById("newEntrataData");
-  const newEntrataDesc = document.getElementById("newEntrataDesc");
-  const newEntrataImporto = document.getElementById("newEntrataImporto");
-  const newEntrataStato = document.getElementById("newEntrataStato");
-  const addEntrataBtn = document.getElementById("addEntrataBtn");
 
   // Modale gruppo spese (voci aggregate)
   const gruppoModal = document.getElementById("gruppoModal");
@@ -66,6 +54,7 @@
   let currentEditExpenseId = null;
   let isAddingNewExpense = false;
   let isEditingEntrata = false;
+  let currentEntryTipo = "uscita"; // tipo della voce in creazione: 'entrata' | 'uscita'
   let currentGruppoMonthIdx = -1;
   let currentGruppoIds = [];
   let currentGruppoSelectedId = null;
@@ -508,86 +497,41 @@
   }
 
   // =============================================
-  // ENTRATE MODAL
+  // NUOVA VOCE (entrata/uscita) — modale di modifica
   // =============================================
 
+  function openNuovaVoceModal(tipo, meseIndex) {
+    isAddingNewExpense = true;
+    isEditingEntrata = false;
+    currentEditMonthIdx = meseIndex;
+    currentEditExpenseId = null;
+    currentEntryTipo = tipo;
+    editModalTitle.textContent =
+      tipo === "entrata" ? "Nuova entrata" : "Nuova spesa";
+    modalDeleteBtn.style.display = "none";
+    popolaSelectCategorie(
+      "editDesc",
+      tipo === "entrata" ? "entrate" : "uscite"
+    );
+    editDesc.value = "";
+    editNewImportoSection.style.display = "block";
+    editImportiSection.style.display = "none";
+    editAddImporto.value = "";
+    editRicorrenteSection.style.display = "none";
+    editData.value = `${currentYear}-${String(meseIndex + 1).padStart(2, "0")}-01`;
+    // Stato visibile e modificabile per entrambe: entrate default "eseguita", uscite default "preventivata"
+    editStatoSection.style.display = "block";
+    editStato.value = tipo === "entrata" ? "eseguita" : "preventivata";
+    editModal.classList.add("active");
+    editDesc.focus();
+  }
+
   function openEntrateModal(meseIndex) {
-    currentEntrateMonth = meseIndex;
-    entrateModalTitle.textContent = `${MESI[meseIndex]} ${currentYear}`;
-    const defaultDate = `${currentYear}-${String(meseIndex + 1).padStart(2, "0")}-15`;
-    newEntrataData.value = defaultDate;
-    popolaSelectCategorie("newEntrataDesc", "entrate");
-    renderEntrateList();
-    entrateModal.classList.add("active");
-    newEntrataDesc.value = "";
-    newEntrataImporto.value = "";
-    if (newEntrataStato) newEntrataStato.value = "preventivata";
-    newEntrataDesc.focus();
+    openNuovaVoceModal("entrata", meseIndex);
   }
 
-  function renderEntrateList() {
-    const entrate = getEntrateMese(currentYear, currentEntrateMonth);
-    entrateList.innerHTML = "";
-    const totale = entrate.reduce((sum, e) => sum + e.importo, 0);
-    document.getElementById("entrateTotalVal").textContent = formatEuro(totale);
-    document.getElementById("entrateTotalBar").style.display =
-      entrate.length > 0 ? "flex" : "none";
-
-    if (entrate.length === 0) {
-      entrateList.innerHTML =
-        '<div class="empty-entrate">Nessuna entrata registrata</div>';
-      return;
-    }
-    entrate.forEach((e) => {
-      const item = document.createElement("div");
-      item.className = "entrata-item";
-      item.style.cursor = "pointer";
-      const dataStr = formatDataBreve(e.data);
-      item.innerHTML = `
-        <span class="entrata-data">${dataStr}</span>
-        <span class="entrata-desc">${e.descrizione}</span>
-        <span class="entrata-importo">${formatEuro(e.importo)}</span>
-      `;
-      item.addEventListener("click", function () {
-        openEditEntrataModal(currentEntrateMonth, e.id);
-      });
-      entrateList.appendChild(item);
-    });
-  }
-
-  async function aggiungiEntrataManuale() {
-    const data = newEntrataData.value;
-    const desc = newEntrataDesc.value.trim();
-    const importo = parseFloat(newEntrataImporto.value);
-
-    if (!data) {
-      await showAlert("Inserire una data");
-      return;
-    }
-    if (!desc) {
-      await showAlert("Inserire una descrizione");
-      return;
-    }
-    if (isNaN(importo) || importo <= 0) {
-      await showAlert("Inserire un importo valido");
-      return;
-    }
-
-    const stato = newEntrataStato ? newEntrataStato.value : "preventivata";
-
-    await addEntrata(currentYear, currentEntrateMonth, {
-      id: generaId("entrata"),
-      data: data,
-      descrizione: desc,
-      importo: importo,
-      stato: stato || "preventivata"
-    });
-
-    renderEntrateList();
-    renderPlanning();
-    newEntrataDesc.value = "";
-    newEntrataImporto.value = "";
-    newEntrataDesc.focus();
+  function openNewExpenseModal(meseIndex) {
+    openNuovaVoceModal("uscita", meseIndex);
   }
 
   // =============================================
@@ -610,38 +554,15 @@
     editImportiSection.style.display = "block";
     editAddImporto.value = entrata.importo;
     editData.value = entrata.data;
-    // Mostra stato anche per le entrate
+    // Stato visibile e modificabile anche per le entrate
     editStatoSection.style.display = "block";
-    editStato.value = entrata.stato || "preventivata";
+    editStato.value = entrata.stato || "eseguita";
     // Mostra sezione ricorrente se ha ricId
     if (entrata.ricId) {
       editRicorrenteSection.style.display = "block";
     } else {
       editRicorrenteSection.style.display = "none";
     }
-    editModal.classList.add("active");
-    editDesc.focus();
-  }
-
-  function openNewExpenseModal(meseIndex) {
-    isAddingNewExpense = true;
-    isEditingEntrata = false;
-    currentEditMonthIdx = meseIndex;
-    currentEditExpenseId = null;
-    editModalTitle.textContent = "Nuova spesa";
-    modalDeleteBtn.style.display = "none";
-    popolaSelectCategorie("editDesc", "uscite");
-    editDesc.value = "";
-    // Per nuove spese: mostra importo normale, nascondi sezione aggiunta
-    editNewImportoSection.style.display = "block";
-    editImportiSection.style.display = "none";
-    // Resetta campo importo
-    editAddImporto.value = "";
-    // Nascondi sezione ricorrente
-    editRicorrenteSection.style.display = "none";
-    // Data default = primo giorno del mese selezionato
-    editData.value = `${currentYear}-${String(meseIndex + 1).padStart(2, "0")}-01`;
-    editStato.value = "preventivata";
     editModal.classList.add("active");
     editDesc.focus();
   }
@@ -720,15 +641,25 @@
 
     try {
       if (isAddingNewExpense) {
-        await addSpesa(currentYear, currentEditMonthIdx, {
-          id: generaId("spesa"),
-          data: nuovaData,
-          descrizione: nuovaDesc,
-          importo: nuovoImporto,
-          stato: nuovoStato
-        });
+        if (currentEntryTipo === "entrata") {
+          await addEntrata(currentYear, currentEditMonthIdx, {
+            id: generaId("entrata"),
+            data: nuovaData,
+            descrizione: nuovaDesc,
+            importo: nuovoImporto,
+            stato: nuovoStato
+          });
+        } else {
+          await addSpesa(currentYear, currentEditMonthIdx, {
+            id: generaId("spesa"),
+            data: nuovaData,
+            descrizione: nuovaDesc,
+            importo: nuovoImporto,
+            stato: nuovoStato
+          });
+        }
       } else if (isEditingEntrata) {
-        // MODIFICA ENTRATA
+        // MODIFICA ENTRATA (lo stato non è modificabile dal modale: preservato)
         const all = getEntrateMese(currentYear, currentEditMonthIdx);
         const entrata = all.find((e) => e.id === currentEditExpenseId);
         if (!entrata) throw new Error("Entrata non trovata");
@@ -762,11 +693,8 @@
       }
 
       // Successo: nascondi spinner, aggiorna la griglia e chiudi il modale
-      // SOLO dopo che l'utente preme OK sulla notifica
       hideSpinner();
       renderPlanning();
-      window.dispatchEvent(new CustomEvent("dataReady"));
-      await showAlert("Salvataggio completato!");
       closeEditModal();
     } catch (e) {
       console.warn("Errore salvataggio:", e.message);
@@ -915,13 +843,6 @@
     }
   });
 
-  // Modale entrate
-  closeEntrateModal.addEventListener("click", function () {
-    entrateModal.classList.remove("active");
-  });
-  entrateModal.addEventListener("click", function (e) {
-    if (e.target === entrateModal) entrateModal.classList.remove("active");
-  });
   // Modale gruppo
   closeGruppoModal.addEventListener("click", function () {
     gruppoModal.classList.remove("active");
@@ -1003,14 +924,6 @@
       }
     }
   });
-  addEntrataBtn.addEventListener("click", aggiungiEntrataManuale);
-  newEntrataImporto.addEventListener("keypress", function (e) {
-    if (e.key === "Enter") aggiungiEntrataManuale();
-  });
-  newEntrataDesc.addEventListener("keypress", function (e) {
-    if (e.key === "Enter") newEntrataImporto.focus();
-  });
-
   // Modale modifica
   modalSaveBtn.addEventListener("click", saveExpense);
   modalCancelBtn.addEventListener("click", closeEditModal);
