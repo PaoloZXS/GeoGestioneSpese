@@ -933,7 +933,11 @@
   ricDeleteThis.addEventListener("click", async function () {
     if (currentEditMonthIdx === -1 || !currentEditExpenseId) return;
     const confirmed = await showConfirm("Eliminare solo questa ricorrenza?");
-    if (confirmed) {
+    if (!confirmed) return;
+
+    // Spinner visibile subito dopo la conferma dell'eliminazione
+    showSpinner("Attendere prego...");
+    try {
       if (isEditingEntrata) {
         await deleteEntrata(
           currentYear,
@@ -948,6 +952,11 @@
         );
       }
       renderPlanning();
+    } catch (e) {
+      console.warn("Errore eliminazione:", e.message);
+      await showAlert("Errore durante l'eliminazione");
+    } finally {
+      hideSpinner();
       closeEditModal();
     }
   });
@@ -997,7 +1006,11 @@
     const confirmed = await showConfirm(
       `Eliminare tutte le ricorrenze di "${item.descrizione}" dal mese ${daMese + 1} al mese ${aMese + 1}?`
     );
-    if (confirmed) {
+    if (!confirmed) return;
+
+    // Spinner visibile subito dopo la conferma dell'eliminazione
+    showSpinner("Attendere prego...");
+    try {
       for (let m = daMese; m <= aMese; m++) {
         const lista = getList(currentYear, m);
         const daEliminare = lista.filter((s) => s.ricId === ricId);
@@ -1007,6 +1020,11 @@
       }
       ricRangeModal.classList.remove("active");
       renderPlanning();
+    } catch (e) {
+      console.warn("Errore eliminazione ricorrenze:", e.message);
+      await showAlert("Errore durante l'eliminazione");
+    } finally {
+      hideSpinner();
       closeEditModal();
     }
   });
@@ -1024,7 +1042,11 @@
     const confirmed = await showConfirm(
       `Eliminare TUTTE le ricorrenze di "${item.descrizione}" dall'intero anno?`
     );
-    if (confirmed) {
+    if (!confirmed) return;
+
+    // Spinner visibile subito dopo la conferma dell'eliminazione
+    showSpinner("Attendere prego...");
+    try {
       for (let m = 0; m < 12; m++) {
         const lista = getList(currentYear, m);
         const daEliminare = lista.filter((s) => s.ricId === ricId);
@@ -1033,6 +1055,11 @@
         }
       }
       renderPlanning();
+    } catch (e) {
+      console.warn("Errore eliminazione ricorrenze:", e.message);
+      await showAlert("Errore durante l'eliminazione");
+    } finally {
+      hideSpinner();
       closeEditModal();
     }
   });
