@@ -127,7 +127,7 @@
 }
 /* Nel mese corrente le righe mantengono i colori di tipo (entrate/uscite) */
 .month-card.current-month .expense-item:hover {
-  background: var(--expense-hover);
+  filter: brightness(0.95);
 }
 
 /* ---- MONTH HEADER ---- */
@@ -285,8 +285,21 @@
   margin-left: 0;
 }
 .expense-item:hover {
-  background: var(--expense-hover);
-  border-color: rgba(255, 255, 255, 0.5);
+  filter: brightness(0.95);
+}
+
+/* Bordo hover colorato in base allo stato della voce */
+.expense-item[data-stato="scaduta"]:hover {
+  border-color: var(--red);
+  box-shadow: 0 0 0 1.5px var(--red);
+}
+.expense-item[data-stato="eseguita"]:hover {
+  border-color: var(--green);
+  box-shadow: 0 0 0 1.5px var(--green);
+}
+.expense-item[data-stato="preventivata"]:hover {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 1.5px var(--blue);
 }
 
 /* Riga aggregata (più voci stessa categoria/stato): tooltip con dettaglio */
