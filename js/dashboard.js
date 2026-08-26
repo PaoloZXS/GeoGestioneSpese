@@ -99,7 +99,8 @@
         const target = track.children[carouselMonthIndex];
         if (!target) return;
         viewport.scrollTo({
-          left: target.offsetLeft - (viewport.clientWidth - target.offsetWidth) / 2,
+          left:
+            target.offsetLeft - (viewport.clientWidth - target.offsetWidth) / 2,
           behavior: "smooth"
         });
       };
@@ -109,7 +110,8 @@
         const target = track.children[carouselMonthIndex];
         if (!target) return;
         viewport.scrollTo({
-          left: target.offsetLeft - (viewport.clientWidth - target.offsetWidth) / 2,
+          left:
+            target.offsetLeft - (viewport.clientWidth - target.offsetWidth) / 2,
           behavior: "smooth"
         });
       };
@@ -120,10 +122,16 @@
     aggiornaRiepilogoAnnuale();
 
     requestAnimationFrame(() => {
-      const currentCard = track.querySelector(`.month-card[data-month="${meseAttuale}"]`);
+      const currentCard = track.querySelector(
+        `.month-card[data-month="${meseAttuale}"]`
+      );
       if (!currentCard) return;
       viewport.scrollTo({
-        left: Math.max(0, currentCard.offsetLeft - (viewport.clientWidth - currentCard.offsetWidth) / 2),
+        left: Math.max(
+          0,
+          currentCard.offsetLeft -
+            (viewport.clientWidth - currentCard.offsetWidth) / 2
+        ),
         behavior: "auto"
       });
     });
@@ -167,6 +175,8 @@
     div.dataset.type = tipo;
     div.dataset.id = entry.id;
     div.dataset.month = meseIndex;
+    div.dataset.stato = stato;
+    div.dataset.data = entry.data ? formatDataCompleta(entry.data) : "";
 
     const amount = formatEuro(entry.importo);
     const entrataAmount = tipo === "entrata" ? `+${amount}` : "";
@@ -240,12 +250,21 @@
 
     const statoPriorita = { scaduta: 0, preventivata: 1, eseguita: 2 };
     const entries = [
-      ...speseOrdinate.map((item) => ({ ...item, tipo: "uscita", stato: item.stato || "preventivata" })),
-      ...entrate.map((item) => ({ ...item, tipo: "entrata", stato: item.stato || "preventivata" }))
+      ...speseOrdinate.map((item) => ({
+        ...item,
+        tipo: "uscita",
+        stato: item.stato || "preventivata"
+      })),
+      ...entrate.map((item) => ({
+        ...item,
+        tipo: "entrata",
+        stato: item.stato || "preventivata"
+      }))
     ].sort((a, b) => {
       // Prima tutte le USCITE, poi tutte le ENTRATE
       const ordTipo = (t) => (t === "uscita" ? 0 : 1);
-      if (ordTipo(a.tipo) !== ordTipo(b.tipo)) return ordTipo(a.tipo) - ordTipo(b.tipo);
+      if (ordTipo(a.tipo) !== ordTipo(b.tipo))
+        return ordTipo(a.tipo) - ordTipo(b.tipo);
       // Tra le USCITE: scadute -> preventivate -> eseguite, poi per data
       if (a.tipo === "uscita") {
         const pa = statoPriorita[a.stato] ?? 99;
@@ -553,6 +572,8 @@
     div.dataset.type = "uscita";
     div.dataset.id = spesa.id;
     div.dataset.month = meseIndex;
+    div.dataset.stato = spesa.stato || "preventivata";
+    div.dataset.data = spesa.data ? formatDataCompleta(spesa.data) : "";
 
     div.innerHTML = `
       <span class="desc">${spesa.descrizione}</span>
@@ -625,6 +646,8 @@
     div.dataset.type = "entrata";
     div.dataset.id = entrata.id;
     div.dataset.month = meseIndex;
+    div.dataset.stato = stato;
+    div.dataset.data = entrata.data ? formatDataCompleta(entrata.data) : "";
 
     div.innerHTML = `
       <span class="desc">${entrata.descrizione}</span>
@@ -1221,6 +1244,63 @@
       closeEditModal();
     }
   });
+
+  // =============================================
+  // TOOLTIP VOCI (data + stato)
+  // =============================================
+
+  let tooltipEl = null;
+  function getTooltipEl() {
+    if (!tooltipEl) {
+      tooltipEl = document.createElement("div");
+      tooltipEl.className = "month-tooltip";
+      document.body.appendChild(tooltipEl);
+    }
+    return tooltipEl;
+  }
+
+  document.addEventListener("mouseover", function (e) {
+    const item = e.target.closest(".expense-item[data-stato]:not(.expandable)");
+    if (!item) return;
+    const tip = getTooltipEl();
+    if (tip._item === item) return; // già su questa voce
+    tip._item = item;
+
+    const data = item.dataset.data || "";
+    const stato = item.dataset.stato;
+    const label = stato.charAt(0).toUpperCase() + stato.slice(1);
+    tip.innerHTML =
+      (data ? `<span>${data}</span> ` : "") +
+      `<span class="tt-stato ${stato}">${label}</span>`;
+    tip.classList.add("visible");
+
+    const r = tip.getBoundingClientRect();
+    tip.style.left =
+      Math.min(e.clientX + 14, window.innerWidth - r.width - 10) + "px";
+    tip.style.top =
+      Math.min(e.clientY + 14, window.innerHeight - r.height - 10) + "px";
+  });
+
+  document.addEventListener("mousemove", function (e) {
+    if (!tooltipEl || !tooltipEl.classList.contains("visible")) return;
+    const r = tooltipEl.getBoundingClientRect();
+    tooltipEl.style.left =
+      Math.min(e.clientX + 14, window.innerWidth - r.width - 10) + "px";
+    tooltipEl.style.top =
+      Math.min(e.clientY + 14, window.innerHeight - r.height - 10) + "px";
+  });
+
+  document.addEventListener("mouseout", function (e) {
+    const item = e.target.closest(".expense-item[data-stato]:not(.expandable)");
+    if (!item) return;
+    if (e.relatedTarget && item.contains(e.relatedTarget)) return;
+    if (tooltipEl) tooltipEl._item = null;
+    nascondiTooltip();
+  });
+
+  function nascondiTooltip() {
+    if (tooltipEl) tooltipEl.classList.remove("visible");
+  }
 
   // =============================================
   // INIT

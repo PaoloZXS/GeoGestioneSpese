@@ -357,6 +357,40 @@
   color: #dc2626;
 }
 
+/* ---- TOOLTIP VOCI (data + stato) ---- */
+.month-tooltip {
+  position: fixed;
+  z-index: 10000;
+  pointer-events: none;
+  background: #1e293b;
+  color: #f1f5f9;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 10px;
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.3);
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  left: 0;
+  top: 0;
+}
+.month-tooltip.visible {
+  opacity: 1;
+}
+.month-tooltip .tt-stato {
+  font-weight: 700;
+}
+.month-tooltip .tt-stato.scaduta {
+  color: #fca5a5;
+}
+.month-tooltip .tt-stato.preventivata {
+  color: #93c5fd;
+}
+.month-tooltip .tt-stato.eseguita {
+  color: #86efac;
+}
+
 /* ---- MONTH TOTAL (entrate/uscite allineate sotto le colonne) ---- */
 .month-total {
   padding: 4px 15px 4px 14px;
