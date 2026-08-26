@@ -56,6 +56,7 @@
   let isEditingEntrata = false;
   let currentEntryTipo = "uscita"; // tipo della voce in creazione: 'entrata' | 'uscita'
   let currentGruppoMonthIdx = -1;
+  let carouselMonthIndex = 0;
   let currentGruppoIds = [];
   let currentGruppoSelectedId = null;
   // Riferimenti ai campi dell'editor gruppo (costruiti una sola volta)
@@ -72,20 +73,60 @@
   function renderPlanning() {
     grid.innerHTML = "";
     const meseAttuale = getMeseCorrente(currentYear);
-    for (let row = 0; row < 3; row++) {
-      const rowDiv = document.createElement("div");
-      rowDiv.className = "row-months";
-      const start = row * 4;
-      const end = Math.min(start + 4, 12);
-      for (let m = start; m < end; m++) {
-        const card = createMonthCard(m, meseAttuale);
-        rowDiv.appendChild(card);
-      }
-      grid.appendChild(rowDiv);
+    carouselMonthIndex = meseAttuale;
+
+    const shell = document.createElement("div");
+    shell.className = "month-carousel-shell";
+
+    const viewport = document.createElement("div");
+    viewport.className = "month-scroll-viewport";
+
+    const track = document.createElement("div");
+    track.className = "month-track";
+    for (let m = 0; m < 12; m++) {
+      track.appendChild(createMonthCard(m, meseAttuale));
     }
+    viewport.appendChild(track);
+    shell.appendChild(viewport);
+    grid.appendChild(shell);
+
+    const prevBtn = document.querySelector(".month-nav-btn.prev");
+    const nextBtn = document.querySelector(".month-nav-btn.next");
+
+    if (prevBtn && nextBtn) {
+      prevBtn.onclick = function () {
+        carouselMonthIndex = Math.max(0, carouselMonthIndex - 1);
+        const target = track.children[carouselMonthIndex];
+        if (!target) return;
+        viewport.scrollTo({
+          left: target.offsetLeft - (viewport.clientWidth - target.offsetWidth) / 2,
+          behavior: "smooth"
+        });
+      };
+
+      nextBtn.onclick = function () {
+        carouselMonthIndex = Math.min(11, carouselMonthIndex + 1);
+        const target = track.children[carouselMonthIndex];
+        if (!target) return;
+        viewport.scrollTo({
+          left: target.offsetLeft - (viewport.clientWidth - target.offsetWidth) / 2,
+          behavior: "smooth"
+        });
+      };
+    }
+
     attachDragDrop();
     annoLabel.textContent = currentYear;
     aggiornaRiepilogoAnnuale();
+
+    requestAnimationFrame(() => {
+      const currentCard = track.querySelector(`.month-card[data-month="${meseAttuale}"]`);
+      if (!currentCard) return;
+      viewport.scrollTo({
+        left: Math.max(0, currentCard.offsetLeft - (viewport.clientWidth - currentCard.offsetWidth) / 2),
+        behavior: "auto"
+      });
+    });
   }
 
   function aggiornaRiepilogoAnnuale() {
@@ -111,6 +152,36 @@
     riepSaldo.className = "riep-item saldo" + (isNegativo ? " negative" : "");
   }
 
+  function createMonthEntryItem(entry, meseIndex) {
+    const tipo = entry.tipo || "uscita";
+    const stato = (entry.stato || "preventivata").toLowerCase();
+    const icone = {
+      scaduta: "fa-exclamation-triangle",
+      preventivata: "fa-clock",
+      eseguita: "fa-check"
+    };
+    const icona = icone[stato] || "fa-circle";
+
+    const div = document.createElement("div");
+    div.className = `expense-item ${tipo === "entrata" ? "entrata-row" : "uscita-row"}`;
+    div.dataset.type = tipo;
+    div.dataset.id = entry.id;
+    div.dataset.month = meseIndex;
+
+    const amount = formatEuro(entry.importo);
+    const entrataAmount = tipo === "entrata" ? `+${amount}` : "";
+    const uscitaAmount = tipo === "uscita" ? `-${amount}` : "";
+
+    div.innerHTML = `
+      <span class="desc"><i class="fas ${icona} entry-icon status-${stato}"></i>${entry.descrizione}</span>
+      <span class="importo entrata">${entrataAmount}</span>
+      <span class="importo uscita">${uscitaAmount}</span>
+    `;
+
+    attachDrag(div, tipo, entry.id, meseIndex);
+    return div;
+  }
+
   function createMonthCard(meseIndex, meseAttuale) {
     const card = document.createElement("div");
     card.className = "month-card";
@@ -126,18 +197,16 @@
     const entrate = getEntrateMese(currentYear, meseIndex);
     const totaleEntrate = entrate.reduce((sum, e) => sum + e.importo, 0);
 
-    // Saldo mensile (mostrato nell'header, dopo il nome del mese)
     const saldo = totaleEntrate - totaleUscite;
     const saldoClasse = saldo >= 0 ? "positivo" : "negativo";
     const segnoSaldo = saldo >= 0 ? "+" : "-";
     const saldoHeader = `${segnoSaldo}${formatEuro(Math.abs(saldo))}`;
 
-    // Header: nome del mese + saldo + pulsanti compatti
     const header = document.createElement("div");
     header.className = "month-header";
     header.innerHTML = `
       <span class="month-title">
-        <span class="month-title-text">Mese di: ${MESI[meseIndex]}</span>
+        <span class="month-title-text">${MESI[meseIndex]}</span>
         <span class="month-saldo ${saldoClasse}">${saldoHeader}</span>
       </span>
       <span class="month-header-right">
@@ -165,42 +234,46 @@
 
     card.appendChild(header);
 
-    // Lista righe: entrate + uscite (raggruppate per descrizione/stato),
-    // ordinate per data
     const list = document.createElement("div");
     list.className = "expense-list";
     list.dataset.month = meseIndex;
 
-    const righe = [];
-    entrate.forEach((e) =>
-      righe.push({ tipo: "entrata", data: e.data, item: e })
-    );
-    raggruppaSpese(speseOrdinate).forEach((gruppo) => {
-      righe.push({ tipo: "uscita", data: gruppo[0].data, gruppo: gruppo });
+    const statoPriorita = { scaduta: 0, preventivata: 1, eseguita: 2 };
+    const entries = [
+      ...speseOrdinate.map((item) => ({ ...item, tipo: "uscita", stato: item.stato || "preventivata" })),
+      ...entrate.map((item) => ({ ...item, tipo: "entrata", stato: item.stato || "preventivata" }))
+    ].sort((a, b) => {
+      // Prima tutte le USCITE, poi tutte le ENTRATE
+      const ordTipo = (t) => (t === "uscita" ? 0 : 1);
+      if (ordTipo(a.tipo) !== ordTipo(b.tipo)) return ordTipo(a.tipo) - ordTipo(b.tipo);
+      // Tra le USCITE: scadute -> preventivate -> eseguite, poi per data
+      if (a.tipo === "uscita") {
+        const pa = statoPriorita[a.stato] ?? 99;
+        const pb = statoPriorita[b.stato] ?? 99;
+        if (pa !== pb) return pa - pb;
+      }
+      const da = a.data ? new Date(a.data + "T12:00:00").getTime() : 0;
+      const db = b.data ? new Date(b.data + "T12:00:00").getTime() : 0;
+      return da - db;
     });
-    righe.sort((a, b) => a.data.localeCompare(b.data));
 
-    if (righe.length === 0) {
+    if (entries.length === 0) {
       const empty = document.createElement("div");
       empty.className = "empty-month";
       empty.textContent = "Nessuna voce";
       list.appendChild(empty);
     } else {
-      righe.forEach((r) => {
-        list.appendChild(
-          r.tipo === "entrata"
-            ? createEntrataItem(r.item, meseIndex)
-            : createExpenseGroupItem(r.gruppo, meseIndex)
-        );
+      entries.forEach((entry) => {
+        list.appendChild(createMonthEntryItem(entry, meseIndex));
       });
     }
+
     card.appendChild(list);
 
-    // Totale: sole entrate/uscite allineate sotto le colonne
     const totalDiv = document.createElement("div");
     totalDiv.className = "month-total";
     totalDiv.innerHTML = `
-      <span class="mt-desc"></span>
+      <span class="mt-desc">Totali</span>
       <span class="mt-entrate">${formatEuro(totaleEntrate)}</span>
       <span class="mt-uscite">${formatEuro(totaleUscite)}</span>
     `;
@@ -210,13 +283,23 @@
   }
 
   /**
-   * Raggruppa le spese per (descrizione + stato): ogni gruppo diventa
-   * una sola riga nel planning con l'importo sommato.
+   * Raggruppa le spese per stato (eseguita, preventivata, scaduta).
+   * Ogni gruppo contiene tutte le voci dello stesso stato.
    */
+  function raggruppaEntrate(entrate) {
+    const mappa = new Map();
+    for (const e of entrate) {
+      const key = e.stato || "preventivata";
+      if (!mappa.has(key)) mappa.set(key, []);
+      mappa.get(key).push(e);
+    }
+    return Array.from(mappa.values());
+  }
+
   function raggruppaSpese(spese) {
     const mappa = new Map();
     for (const s of spese) {
-      const key = `${s.descrizione}||${s.stato}`;
+      const key = s.stato;
       if (!mappa.has(key)) mappa.set(key, []);
       mappa.get(key).push(s);
     }
@@ -224,35 +307,60 @@
   }
 
   /**
-   * Crea la riga per un gruppo di spese della stessa categoria/stato.
-   * Se il gruppo ha una sola voce, riusa la riga normale (editabile e
-   * trascinabile); altrimenti mostra la somma con tooltip di dettaglio.
+   * Crea una sezione espandibile per un gruppo di spese dello stesso stato.
+   * La riga principale espande/contrae il contenitore figlio; le righe figlie
+   * mantengono il comportamento di modifica standard.
    */
   function createExpenseGroupItem(gruppo, meseIndex) {
-    if (gruppo.length === 1) {
-      return createExpenseItem(gruppo[0], meseIndex);
-    }
-    const prima = gruppo[0];
-    const stato = prima.stato;
+    const stato = gruppo[0].stato;
     const totale = gruppo.reduce((s, x) => s + x.importo, 0);
-    const n = gruppo.length;
-    const dettaglio = gruppo
-      .map((x) => `${formatDataBreve(x.data)}: ${formatEuro(x.importo)}`)
-      .join(" · ");
+    const statoLabel = (stato || "preventivata").toUpperCase();
 
-    const div = document.createElement("div");
-    div.className = `expense-item uscita-row status-${stato} merged`;
-    div.title = `${n} voci: ${dettaglio}`;
-    div.dataset.type = "uscita";
-    div.innerHTML = `
-      <span class="desc">${prima.descrizione}</span>
+    const wrapper = document.createElement("div");
+    wrapper.className = "expense-group-wrapper";
+    wrapper.dataset.month = meseIndex;
+
+    const header = document.createElement("div");
+    header.className = `expense-item uscita-row status-${stato} expandable`;
+    header.dataset.type = "uscita-group";
+    header.dataset.month = meseIndex;
+    header.dataset.stato = stato;
+
+    header.innerHTML = `
+      <span class="desc group-label">
+        <span class="group-type-pill uscita">USCITE</span>
+        <span class="group-state-pill status-${stato}">${statoLabel}</span>
+      </span>
       <span class="importo entrata"></span>
       <span class="importo uscita">${formatEuro(totale)}</span>
     `;
-    // Dati per il click delegato sul grid
-    div.dataset.month = meseIndex;
-    div.dataset.groupIds = JSON.stringify(gruppo.map((x) => x.id));
-    return div;
+
+    header.addEventListener("click", function (e) {
+      e.stopPropagation();
+      const parent = header.closest(".expense-group-wrapper");
+      if (!parent) return;
+      const expanded = parent.classList.toggle("expanded");
+      const children = parent.querySelector(".expense-children");
+      if (children) {
+        children.style.display = expanded ? "flex" : "none";
+      }
+    });
+
+    const children = document.createElement("div");
+    children.className = "expense-children";
+    children.style.display = "none";
+
+    gruppo.forEach((spesa) => {
+      const child = createExpenseItem(spesa, meseIndex);
+      child.classList.add("child");
+      child.dataset.type = "uscita";
+      child.classList.remove("merged");
+      children.appendChild(child);
+    });
+
+    wrapper.appendChild(header);
+    wrapper.appendChild(children);
+    return wrapper;
   }
 
   // ---- MODALE GRUPPO (dettaglio voci aggregate) ----
@@ -456,6 +564,58 @@
     attachDrag(div, "uscita", spesa.id, meseIndex);
 
     return div;
+  }
+
+  function createEntrataGroupItem(gruppo, meseIndex) {
+    const stato = gruppo[0].stato || "preventivata";
+    const totale = gruppo.reduce((s, x) => s + x.importo, 0);
+    const statoLabel = (stato || "preventivata").toUpperCase();
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "expense-group-wrapper";
+    wrapper.dataset.month = meseIndex;
+
+    const header = document.createElement("div");
+    header.className = `expense-item entrata-row status-${stato} expandable`;
+    header.dataset.type = "entrata-group";
+    header.dataset.month = meseIndex;
+    header.dataset.stato = stato;
+
+    header.innerHTML = `
+      <span class="desc group-label">
+        <span class="group-type-pill entrata">ENTRATE</span>
+        <span class="group-state-pill status-${stato}">${statoLabel}</span>
+      </span>
+      <span class="importo entrata">${formatEuro(totale)}</span>
+      <span class="importo uscita"></span>
+    `;
+
+    header.addEventListener("click", function (e) {
+      e.stopPropagation();
+      const parent = header.closest(".expense-group-wrapper");
+      if (!parent) return;
+      const expanded = parent.classList.toggle("expanded");
+      const children = parent.querySelector(".expense-children");
+      if (children) {
+        children.style.display = expanded ? "flex" : "none";
+      }
+    });
+
+    const children = document.createElement("div");
+    children.className = "expense-children";
+    children.style.display = "none";
+
+    gruppo.forEach((entrata) => {
+      const child = createEntrataItem(entrata, meseIndex);
+      child.classList.add("child");
+      child.dataset.type = "entrata";
+      child.classList.remove("merged");
+      children.appendChild(child);
+    });
+
+    wrapper.appendChild(header);
+    wrapper.appendChild(children);
+    return wrapper;
   }
 
   function createEntrataItem(entrata, meseIndex) {
@@ -807,6 +967,7 @@
   function changeYear(delta) {
     currentYear += delta;
     setCurrentYear(currentYear);
+    carouselMonthIndex = getMeseCorrente(currentYear);
     // Assicura che i dati esistano per il nuovo anno
     getSpese(currentYear);
     getEntrate(currentYear);
@@ -824,19 +985,16 @@
     changeYear(1);
   });
 
-  // Delegazione click sul planning: gestisce righe singole (modifica) e
-  // gruppi merged (dettaglio) senza riattaccare listener a ogni render.
+  // Delegazione click sul planning: la riga principale espande/contrae il gruppo,
+  // mentre le righe figlie mantengono la modifica diretta delle singole voci.
   grid.addEventListener("click", function (e) {
     const item = e.target.closest(".expense-item");
     if (!item) return;
+    if (item.classList.contains("expandable")) {
+      return;
+    }
     const meseIndex = parseInt(item.dataset.month, 10);
-    if (item.classList.contains("merged")) {
-      let ids = [];
-      try {
-        ids = JSON.parse(item.dataset.groupIds || "[]");
-      } catch (_) {}
-      openGruppoModal(meseIndex, ids);
-    } else if (item.dataset.type === "entrata") {
+    if (item.dataset.type === "entrata") {
       openEditEntrataModal(meseIndex, item.dataset.id);
     } else {
       openEditModal(meseIndex, item.dataset.id);

@@ -14,7 +14,7 @@
     <link rel="stylesheet" href="css/notifications.css" />
     <style>
       .page-wrapper.impostazioni-wrap {
-        overflow-y: auto;
+        overflow: hidden;
         align-items: stretch;
         justify-content: flex-start;
         text-align: left;
@@ -58,7 +58,68 @@
         display: none;
       }
       .tab-panel.active {
+        display: flex;
+        flex-direction: column;
+      }
+      #tab-cancellazione.active {
+        flex: 1;
+        min-height: 0;
+        gap: 14px;
+      }
+
+      /* Riga principale: intervallo a sinistra, card categorie/dettaglio a destra */
+      .cancellazione-main {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        gap: 14px;
+        align-items: stretch;
+      }
+      #cardRangeDate {
+        flex: 0 0 300px;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        align-self: flex-start;
+        border: 1.5px solid #c9d6e8;
+        box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
+      }
+      #cardRangeDate .card-desc {
+        margin-bottom: 18px;
+      }
+      #cardRangeDate .range-fields {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 16px;
+      }
+      #cardRangeDate .range-input-wrap {
         display: block;
+      }
+      #cardRangeDate .range-fields .field-group input[type="text"] {
+        width: 100%;
+      }
+      #cardRangeDate .range-fields .btn-cancella {
+        align-self: stretch;
+        justify-content: center;
+      }
+      #contenitoreLista {
+        flex: 1;
+        min-width: 0;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        padding: 0 24px;
+      }
+      #contenitoreLista[hidden],
+      #cardRangeDate[hidden],
+      #toolbarAzioni[hidden] {
+        display: none !important;
+      }
+      #tab-storico.active {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
       }
 
       /* ---- CARD ---- */
@@ -116,8 +177,11 @@
       .mv-layout {
         display: flex;
         gap: 14px;
-        margin-top: 18px;
+        margin-top: 0;
         align-items: stretch;
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
       }
       .mv-blocco {
         flex: 1;
@@ -127,6 +191,8 @@
         border: 1px solid #d3dbe7;
         border-radius: 12px;
         padding: 12px 14px;
+        min-height: 0;
+        overflow: hidden;
       }
       .mv-blocco.gruppi {
         flex: 0 0 40%;
@@ -139,6 +205,7 @@
         font-weight: 700;
         color: var(--text-primary);
         margin-bottom: 8px;
+        flex-shrink: 0;
       }
       .mv-blocco-header i {
         color: var(--blue);
@@ -223,6 +290,7 @@
       .dettaglio-azioni {
         justify-content: flex-start;
         margin-top: 8px;
+        flex-shrink: 0;
       }
 
       .mv-list {
@@ -305,19 +373,22 @@
         font-size: 14px;
       }
 
-      /* ---- LISTA CATEGORIE (sinistra): altezza fissa con scroll ---- */
+      /* ---- LISTA CATEGORIE (sinistra): riempie lo spazio con scroll interno ---- */
       .gruppi-list {
-        max-height: 500px;
+        flex: 1;
+        min-height: 0;
         overflow-y: auto;
       }
 
-      /* ---- LISTA VOCI: sottoliste per categoria, affiancate ---- */
+      /* ---- LISTA VOCI: sottoliste per categoria, riempie lo spazio ---- */
       .mv-list {
         display: flex;
         flex-wrap: wrap;
         gap: 12px;
         align-items: flex-start;
-        max-height: 520px;
+        align-content: flex-start;
+        flex: 1;
+        min-height: 0;
         overflow-y: auto;
       }
       .mv-sublist {
@@ -345,10 +416,12 @@
         color: var(--text-muted);
       }
 
-      /* ---- TOOLBAR PULSANTI (in alto, fissi) ---- */
-      .elenco-footer.toolbar-top {
+      /* ---- TOOLBAR PULSANTI (in basso, sotto le card) ---- */
+      .elenco-footer.toolbar-bottom {
+        flex-shrink: 0;
         margin-top: 0;
-        margin-bottom: 14px;
+        justify-content: flex-end;
+        padding-right: 25px;
       }
 
       /* ---- FOOTER ELENCO (tutti i pulsanti sulla stessa riga) ---- */
@@ -360,6 +433,10 @@
         margin-top: 16px;
       }
       .elenco-footer-btns {
+        display: flex;
+        gap: 10px;
+      }
+      .toolbar-left-btns {
         display: flex;
         gap: 10px;
       }
@@ -398,6 +475,122 @@
       .btn-cancella:disabled {
         opacity: 0.5;
         cursor: not-allowed;
+      }
+
+      /* ---- ELIMINA PER INTERVALLO DATE ---- */
+      .range-fields {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        gap: 14px;
+      }
+      .range-fields .field-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .range-fields .field-group label {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-secondary);
+      }
+      .range-input-wrap {
+        position: relative;
+        display: inline-block;
+      }
+      .range-fields .field-group input[type="text"] {
+        padding: 9px 34px 9px 12px;
+        border: 1px solid var(--blue-border);
+        border-radius: 10px;
+        font-size: 15px;
+        color: var(--text-primary);
+        background: #fff;
+        outline: none;
+        transition: 0.15s;
+        width: 130px;
+        letter-spacing: 0.5px;
+      }
+      .range-fields .field-group input[type="text"]:focus {
+        border-color: var(--blue);
+        box-shadow: 0 0 0 3px var(--blue-light);
+      }
+      .range-input-wrap .range-icon {
+        position: absolute;
+        right: 11px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-muted);
+        font-size: 13px;
+        pointer-events: auto;
+        cursor: pointer;
+        z-index: 1;
+      }
+      .range-input-wrap .range-icon:hover {
+        color: var(--blue);
+      }
+
+      /* ---- PICKER MESE/ANNO ---- */
+      .month-year-picker {
+        position: absolute;
+        top: calc(100% + 5px);
+        left: 0;
+        z-index: 100;
+        background: #fff;
+        border: 1px solid var(--blue-border);
+        border-radius: 12px;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.16);
+        padding: 10px;
+        width: 224px;
+      }
+      .month-year-picker .picker-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 8px;
+      }
+      .month-year-picker .picker-nav {
+        background: transparent;
+        border: none;
+        color: var(--blue);
+        font-size: 14px;
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 8px;
+      }
+      .month-year-picker .picker-nav:hover {
+        background: var(--blue-light);
+      }
+      .month-year-picker .picker-year {
+        font-weight: 700;
+        font-size: 14px;
+        color: var(--text-primary);
+      }
+      .month-year-picker .picker-months {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 4px;
+      }
+      .month-year-picker .picker-month {
+        padding: 6px 2px;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        background: #f0f4fb;
+        font-size: 11px;
+        color: var(--text-primary);
+        cursor: pointer;
+        transition: 0.1s;
+      }
+      .month-year-picker .picker-month:hover {
+        background: var(--blue-light);
+      }
+      .month-year-picker .picker-month.selected {
+        background: var(--blue);
+        color: #fff;
+        font-weight: 700;
+      }
+      .range-fields .btn-cancella {
+        height: 41px;
+        white-space: nowrap;
       }
 
       /* ---- MODALE PASSWORD ---- */
@@ -639,11 +832,12 @@
         <div class="pw-title" id="pwTitle">Cancellazione Dati</div>
         <div class="pw-msg" id="pwMsg">Inserisci la password per accedere</div>
         <input
-          type="password"
+          type="text"
           class="pw-input"
           id="pwInput"
           placeholder="Password..."
           autocomplete="off"
+          style="-webkit-text-security: disc"
         />
         <div class="pw-btns">
           <button class="btn-annulla" id="pwAnnulla">Annulla</button>

@@ -22,8 +22,8 @@
 
   // Toggle password visibility
   togglePw.addEventListener("click", function () {
-    const isPassword = pwInput.type === "password";
-    pwInput.type = isPassword ? "text" : "password";
+    const isPassword = pwInput.style.webkitTextSecurity !== "none";
+    pwInput.style.webkitTextSecurity = isPassword ? "none" : "disc";
     toggleIcon.className = isPassword ? "fas fa-eye-slash" : "fas fa-eye";
   });
 

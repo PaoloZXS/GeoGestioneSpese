@@ -69,12 +69,18 @@ function formatEuro(valore) {
 
 /**
  * Restituisce il mese corrente (0-based) per l'anno specificato.
- * Se l'anno è 2026, restituisce Giugno (6). Altrimenti -1.
+ * Se l'anno corrisponde all'anno attuale, indica il mese corrente.
+ * Altrimenti restituisce -1 per non evidenziare nessun mese.
  */
 function getMeseCorrente(year) {
-  // Al 26/07/2026
-  if (year === 2026) return 6;
-  // Per anni diversi, usa la data reale
+  const dataCorrente = new Date();
+  const annoCorrente = dataCorrente.getFullYear();
+  const meseCorrente = dataCorrente.getMonth();
+
+  if (year === annoCorrente) {
+    return meseCorrente;
+  }
+
   return -1;
 }
 

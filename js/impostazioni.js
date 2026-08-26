@@ -25,6 +25,13 @@
   let btnEliminaCategorie = null;
   let btnEliminaTutte = null;
 
+  // Elementi DOM del blocco "Elimina per intervallo di date"
+  let cardRangeDate = null;
+  let rangeDa = null;
+  let rangeA = null;
+  let btnEliminaRange = null;
+  let toolbarAzioni = null;
+
   // Elementi DOM del tab Storico (creati dinamicamente all'apertura)
   let tabStorico = null;
   let elencoSnapshot = null;
@@ -149,27 +156,34 @@
       row.className = "gruppo-row" + (idx === gruppoAttivo ? " attiva" : "");
       const isCatSel = categorieSelezionate.has(idx);
       row.innerHTML = `
-        <input type="radio" name="catSel" class="mv-check" ${isCatSel ? "checked" : ""} />
+        <input type="checkbox" class="mv-check" ${isCatSel ? "checked" : ""} />
         <span class="gruppo-nome">${escapeHtml(g.descrizione)}</span>
         <span class="gruppo-count">${g.voci.length} voci</span>
       `;
-      const radio = row.querySelector(".mv-check");
-      radio.addEventListener("click", (e) => {
-        e.stopPropagation();
-        if (radio.checked) {
-          categorieSelezionate = new Set([idx]); // una sola categoria alla volta
+      const check = row.querySelector(".mv-check");
+      check.addEventListener("change", () => {
+        if (check.checked) {
+          categorieSelezionate.add(idx);
           gruppoAttivo = idx; // sincronizza la lista a destra con questa categoria
+        } else {
+          categorieSelezionate.delete(idx);
+          if (gruppoAttivo === idx) {
+            // Se deseleziono la categoria attiva, mostro l'ultima rimasta selezionata
+            const rimaste = [...categorieSelezionate];
+            gruppoAttivo =
+              rimaste.length > 0 ? rimaste[rimaste.length - 1] : -1;
+          }
         }
         renderGruppi();
         renderDettaglio();
         aggiornaBtnCategorie();
       });
-      row.addEventListener("click", () => {
+      row.addEventListener("click", (e) => {
+        // Il click sul checkbox è già gestito sopra
+        if (e.target === check) return;
         gruppoAttivo = idx;
-        categorieSelezionate = new Set([idx]); // radio selezionato
         renderGruppi();
         renderDettaglio();
-        aggiornaBtnCategorie();
       });
       elencoGruppi.appendChild(row);
     });
@@ -258,7 +272,10 @@
       btnEliminaCategorie.disabled = categorieSelezionate.size === 0;
     }
     if (btnEliminaTutte) {
-      btnEliminaTutte.disabled = gruppi.length === 0;
+      const vuoto = gruppi.length === 0;
+      btnEliminaTutte.disabled = vuoto;
+      // Visibile solo se ci sono categorie
+      btnEliminaTutte.style.display = vuoto ? "none" : "";
     }
   }
 
@@ -266,7 +283,10 @@
   // CANCELLAZIONE (solo voci spuntate)
   // =============================================
 
-  async function cancellaSelezionati() {
+  // idsOverride: Set di id opzionale (es. intervallo di date).
+  // Se assente usa la selezione globale (checkbox).
+  async function cancellaSelezionati(idsOverride) {
+    const target = idsOverride || selezione;
     const idsSpese = new Set();
     const idsEntrate = new Set();
 
@@ -276,9 +296,9 @@
       for (let m = 0; m < 12; m++) {
         if (!all[m]) continue;
         all[m].forEach((s) => {
-          if (selezione.has(s.id)) idsSpese.add(s.id);
+          if (target.has(s.id)) idsSpese.add(s.id);
         });
-        all[m] = all[m].filter((s) => !selezione.has(s.id));
+        all[m] = all[m].filter((s) => !target.has(s.id));
       }
     }
     for (const anno of Object.keys(_entrateCache)) {
@@ -286,9 +306,9 @@
       for (let m = 0; m < 12; m++) {
         if (!all[m]) continue;
         all[m].forEach((e) => {
-          if (selezione.has(e.id)) idsEntrate.add(e.id);
+          if (target.has(e.id)) idsEntrate.add(e.id);
         });
-        all[m] = all[m].filter((e) => !selezione.has(e.id));
+        all[m] = all[m].filter((e) => !target.has(e.id));
       }
     }
 
@@ -441,47 +461,253 @@
   }
 
   // =============================================
+  // ELIMINAZIONE PER INTERVALLO DI DATE
+  // =============================================
+
+  // Maschera: l'utente digita solo numeri, formattati come MM/AAAA
+  function initMaskMeseAnno(input) {
+    input.addEventListener("input", function () {
+      let v = this.value.replace(/\D/g, "").slice(0, 6);
+      if (v.length > 2) v = v.slice(0, 2) + "/" + v.slice(2);
+      this.value = v;
+    });
+  }
+
+  // Converte "MM/AAAA" in "YYYY-MM" (vuoto se non valido)
+  function parseMeseAnno(str) {
+    if (!str) return "";
+    const m = String(str)
+      .trim()
+      .match(/^(\d{2})\/(\d{4})$/);
+    if (!m) return "";
+    const mm = Number(m[1]);
+    if (mm < 1 || mm > 12) return "";
+    return `${m[2]}-${m[1]}`;
+  }
+
+  function aggiornaBtnRange() {
+    if (!btnEliminaRange) return;
+    const da = parseMeseAnno(rangeDa.value);
+    const a = parseMeseAnno(rangeA.value);
+    btnEliminaRange.disabled = !(da && a && da <= a);
+  }
+
+  // da/a sono in formato "YYYY-MM"
+  function raccogliIdsPerRange(da, a) {
+    const movimenti = raccogliMovimenti();
+    const ids = new Set();
+
+    // Estremi: primo giorno del mese iniziale, ultimo giorno del mese finale
+    const from = da + "-01";
+    const [yA, mA] = a.split("-").map(Number);
+    const ultimoGiorno = new Date(yA, mA, 0).getDate(); // mA 1-based → ultimo giorno
+    const to = a + "-" + String(ultimoGiorno).padStart(2, "0");
+
+    movimenti.forEach((mv) => {
+      if (!mv.data) return;
+      if (mv.data < from || mv.data > to) return;
+      // Elimina SEMPRE tutte le voci: entrate e uscite
+      ids.add(mv.id);
+    });
+    return ids;
+  }
+
+  function formatMeseAnno(ym) {
+    if (!ym) return "";
+    const [y, m] = ym.split("-");
+    return `${m}/${y}`;
+  }
+
+  // =============================================
+  // PICKER MESE/ANNO (si apre da campo o icona calendario)
+  // =============================================
+
+  let pickerApertoInput = null;
+
+  function chiudiPickerMeseAnno() {
+    const old = document.querySelector(".month-year-picker");
+    if (old) old.remove();
+    pickerApertoInput = null;
+  }
+
+  function apriPickerMeseAnno(input) {
+    if (pickerApertoInput === input) return; // già aperto
+    chiudiPickerMeseAnno();
+    pickerApertoInput = input;
+
+    const wrap = input.closest(".range-input-wrap");
+    if (!wrap) return;
+
+    const nomi = [
+      "Gennaio",
+      "Febbraio",
+      "Marzo",
+      "Aprile",
+      "Maggio",
+      "Giugno",
+      "Luglio",
+      "Agosto",
+      "Settembre",
+      "Ottobre",
+      "Novembre",
+      "Dicembre"
+    ];
+    const corrente = parseMeseAnno(input.value);
+    let anno = corrente
+      ? Number(corrente.slice(0, 4))
+      : new Date().getFullYear();
+    let meseSelezionato = corrente ? Number(corrente.slice(5, 7)) : 0;
+
+    const picker = document.createElement("div");
+    picker.className = "month-year-picker";
+
+    function render() {
+      picker.innerHTML = `
+        <div class="picker-head">
+          <button type="button" class="picker-nav" data-dir="-1" tabindex="-1"><i class="fas fa-chevron-left"></i></button>
+          <span class="picker-year">${anno}</span>
+          <button type="button" class="picker-nav" data-dir="1" tabindex="-1"><i class="fas fa-chevron-right"></i></button>
+        </div>
+        <div class="picker-months">
+          ${nomi
+            .map((n, i) => {
+              const v = String(i + 1).padStart(2, "0");
+              const sel = i + 1 === meseSelezionato ? " selected" : "";
+              return `<button type="button" class="picker-month${sel}" data-mese="${v}" tabindex="-1">${n}</button>`;
+            })
+            .join("")}
+        </div>
+      `;
+
+      picker.querySelectorAll(".picker-nav").forEach((b) => {
+        b.addEventListener("click", function (e) {
+          e.stopPropagation();
+          anno += Number(b.dataset.dir);
+          render();
+        });
+      });
+      picker.querySelectorAll(".picker-month").forEach((b) => {
+        b.addEventListener("click", function (e) {
+          e.stopPropagation();
+          const mese = b.dataset.mese;
+          input.value = `${mese}/${anno}`;
+          input.dispatchEvent(new Event("input"));
+          chiudiPickerMeseAnno();
+        });
+      });
+    }
+
+    render();
+    wrap.appendChild(picker);
+  }
+
+  async function eliminaRange() {
+    const da = parseMeseAnno(rangeDa.value);
+    const a = parseMeseAnno(rangeA.value);
+    if (!da || !a || da > a) return;
+
+    const ids = raccogliIdsPerRange(da, a);
+    if (ids.size === 0) {
+      await showAlert("Nessuna voce trovata nell'intervallo selezionato.");
+      return;
+    }
+
+    const ok = await showConfirm(
+      `Eliminare ${ids.size} ${ids.size === 1 ? "voce" : "voci"} comprese tra ${formatMeseAnno(da)} e ${formatMeseAnno(a)}?`
+    );
+    if (!ok) return;
+
+    showSpinner("Attendere prego...");
+    try {
+      await cancellaSelezionati(ids);
+    } finally {
+      hideSpinner();
+    }
+
+    await showAlert(
+      `${ids.size} ${ids.size === 1 ? "voce eliminata" : "voci eliminate"} dall'intervallo selezionato.`
+    );
+
+    window.dispatchEvent(new CustomEvent("dataReady"));
+
+    // Resetta i campi e ricarica la lista
+    rangeDa.value = "";
+    rangeA.value = "";
+    aggiornaBtnRange();
+    popolaLista();
+  }
+
+  // =============================================
   // TAB CANCELLAZIONE — costruzione dinamica + accesso protetto
   // =============================================
 
   function costruisciTabCancellazione() {
     tabCancellazione = document.getElementById("tab-cancellazione");
     tabCancellazione.innerHTML = `
-      <div class="impostazioni-card" id="contenitoreLista" hidden>
-        <!-- Pulsanti fissi in alto -->
-        <div class="elenco-footer toolbar-top">
+      <div class="cancellazione-main">
+        <div class="impostazioni-card" id="cardRangeDate" hidden>
+          <h3><i class="fas fa-calendar-range"></i> Elimina per intervallo di date</h3>
+          <div class="card-desc">
+            Elimina tutte le voci del planning (entrate e uscite) comprese tra due date.
+          </div>
+          <div class="range-fields">
+            <div class="field-group">
+              <label>Mese/Anno inizio</label>
+              <div class="range-input-wrap">
+                <input type="text" id="rangeDa" placeholder="MM/AAAA" maxlength="7" inputmode="numeric" autocomplete="off" />
+                <i class="fas fa-calendar-alt range-icon"></i>
+              </div>
+            </div>
+            <div class="field-group">
+              <label>Mese/Anno fine</label>
+              <div class="range-input-wrap">
+                <input type="text" id="rangeA" placeholder="MM/AAAA" maxlength="7" inputmode="numeric" autocomplete="off" />
+                <i class="fas fa-calendar-alt range-icon"></i>
+              </div>
+            </div>
+            <button class="btn-cancella" id="btnEliminaRange" disabled>
+              <i class="fas fa-trash"></i> Elimina intervallo
+            </button>
+          </div>
+        </div>
+        <div class="impostazioni-card" id="contenitoreLista" hidden>
+          <div class="mv-layout">
+            <div class="mv-blocco gruppi">
+              <div class="mv-blocco-header">
+                <i class="fas fa-layer-group"></i>
+                <span>Categorie trovate</span>
+              </div>
+              <div class="gruppi-list" id="elencoGruppi"></div>
+            </div>
+            <div class="mv-blocco">
+              <div class="mv-blocco-header" id="dettaglioHeader">
+                <i class="fas fa-list-ul"></i>
+                <span>Dettaglio voci</span>
+              </div>
+              <div class="elenco-azioni dettaglio-azioni">
+                <button id="btnSelezionaTutto" class="link-btn">Tutto</button>
+                <button id="btnNessuno" class="link-btn">Nessuno</button>
+              </div>
+              <div class="mv-list" id="elencoMovimenti"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Pulsanti in basso, sotto le card -->
+      <div class="elenco-footer toolbar-bottom" id="toolbarAzioni" hidden>
+        <div class="toolbar-left-btns">
           <button class="btn-cancella" id="btnEliminaCategorie" disabled>
             <i class="fas fa-trash"></i> Elimina Categorie Selezionate
           </button>
           <button class="btn-cancella" id="btnEliminaTutte" disabled>
             <i class="fas fa-trash"></i> Elimina tutte le categorie
           </button>
-          <div class="elenco-footer-btns">
-            <button class="btn-annulla" id="btnAnnulla">Annulla</button>
-            <button class="btn-cancella" id="btnConfermaCancella" disabled>
-              <i class="fas fa-trash"></i> Elimina selezionate (0)
-            </button>
-          </div>
         </div>
-        <div class="mv-layout">
-          <div class="mv-blocco gruppi">
-            <div class="mv-blocco-header">
-              <i class="fas fa-layer-group"></i>
-              <span>Categorie trovate</span>
-            </div>
-            <div class="gruppi-list" id="elencoGruppi"></div>
-          </div>
-          <div class="mv-blocco">
-            <div class="mv-blocco-header" id="dettaglioHeader">
-              <i class="fas fa-list-ul"></i>
-              <span>Dettaglio voci</span>
-            </div>
-            <div class="elenco-azioni dettaglio-azioni">
-              <button id="btnSelezionaTutto" class="link-btn">Tutto</button>
-              <button id="btnNessuno" class="link-btn">Nessuno</button>
-            </div>
-            <div class="mv-list" id="elencoMovimenti"></div>
-          </div>
+        <div class="elenco-footer-btns">
+          <button class="btn-cancella" id="btnConfermaCancella" disabled>
+            <i class="fas fa-trash"></i> Elimina selezionate (0)
+          </button>
+          <button class="btn-annulla" id="btnAnnulla">Annulla</button>
         </div>
       </div>
     `;
@@ -496,6 +722,40 @@
     btnAnnulla = document.getElementById("btnAnnulla");
     btnEliminaCategorie = document.getElementById("btnEliminaCategorie");
     btnEliminaTutte = document.getElementById("btnEliminaTutte");
+    cardRangeDate = document.getElementById("cardRangeDate");
+    rangeDa = document.getElementById("rangeDa");
+    rangeA = document.getElementById("rangeA");
+    btnEliminaRange = document.getElementById("btnEliminaRange");
+    toolbarAzioni = document.getElementById("toolbarAzioni");
+
+    // Eventi blocco intervallo date
+    initMaskMeseAnno(rangeDa);
+    initMaskMeseAnno(rangeA);
+    rangeDa.addEventListener("input", aggiornaBtnRange);
+    rangeA.addEventListener("input", aggiornaBtnRange);
+    rangeDa.addEventListener("click", function () {
+      apriPickerMeseAnno(rangeDa);
+    });
+    rangeA.addEventListener("click", function () {
+      apriPickerMeseAnno(rangeA);
+    });
+    const iconeRange = cardRangeDate.querySelectorAll(
+      ".range-input-wrap .range-icon"
+    );
+    if (iconeRange[0]) {
+      iconeRange[0].addEventListener("click", function (e) {
+        e.stopPropagation();
+        apriPickerMeseAnno(rangeDa);
+      });
+    }
+    if (iconeRange[1]) {
+      iconeRange[1].addEventListener("click", function (e) {
+        e.stopPropagation();
+        apriPickerMeseAnno(rangeA);
+      });
+    }
+    btnEliminaRange.addEventListener("click", eliminaRange);
+    aggiornaBtnRange();
 
     // Eventi contenuto
     btnSelezionaTutto.addEventListener("click", function () {
@@ -576,6 +836,8 @@
 
     // Contenuto nascosto finché non si inserisce la password
     contenitoreLista.hidden = true;
+    if (cardRangeDate) cardRangeDate.hidden = true;
+    if (toolbarAzioni) toolbarAzioni.hidden = true;
     cancellazioneSbloccata = false;
 
     const ok = await chiediPasswordAccesso(
@@ -585,6 +847,8 @@
 
     cancellazioneSbloccata = true;
     contenitoreLista.hidden = false;
+    if (cardRangeDate) cardRangeDate.hidden = false;
+    if (toolbarAzioni) toolbarAzioni.hidden = false;
     popolaLista();
   }
 
@@ -601,6 +865,11 @@
     btnConferma = null;
     btnAnnulla = null;
     btnEliminaCategorie = null;
+    cardRangeDate = null;
+    rangeDa = null;
+    rangeA = null;
+    btnEliminaRange = null;
+    toolbarAzioni = null;
     categorieSelezionate = new Set();
     cancellazioneSbloccata = false;
   }
@@ -782,6 +1051,16 @@
   // INIT — il tab Cancellazione è vuoto all'apertura
   // (i contenuti vengono creati solo al click sul tab)
   // =============================================
+
+  // Chiude il picker mese/anno se si clicca fuori
+  document.addEventListener("click", function (e) {
+    if (
+      !e.target.closest(".month-year-picker") &&
+      !e.target.closest(".range-input-wrap")
+    ) {
+      chiudiPickerMeseAnno();
+    }
+  });
 
   window.addEventListener("dataReady", function () {
     if (cancellazioneSbloccata && contenitoreLista) popolaLista();

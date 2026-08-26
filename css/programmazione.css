@@ -169,7 +169,9 @@
   border: 2px solid #e2e8f0;
   border-radius: var(--radius-lg);
   padding: 14px 14px 14px 14px;
-  height: 260px;
+  height: auto;
+  min-height: 120px;
+  max-height: calc(100vh - 280px);
   display: flex;
   flex-direction: column;
 }
@@ -199,6 +201,7 @@
   gap: 4px;
   flex: 1;
   overflow-y: auto;
+  min-height: 0;
   padding-right: 4px;
 }
 .ricorrenti-list::-webkit-scrollbar {
@@ -251,9 +254,6 @@
 }
 .programmazione-column.uscite .ricorrente-item {
   background: var(--ric-uscite-item);
-}
-.programmazione-column.uscite .ricorrente-item:nth-child(odd) {
-  background: var(--ric-uscite-item-alt);
 }
 
 .ricorrente-item .ric-desc {

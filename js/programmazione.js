@@ -40,17 +40,54 @@
     renderRicColumn("uscite", ricListUscite);
   }
 
+  /**
+   * True se il ricorrente risulta già applicato al planning dell'anno:
+   * 1) per ricId (collegamento ufficiale), oppure
+   * 2) fallback: esiste nel planning una voce con la stessa descrizione
+   *    e data compresa nel periodo del ricorrente (copre anche dati storici
+   *    creati senza ricId, es. entrate esistenti).
+   */
+  function ricorrenteApplicata(tipo, ric, year) {
+    const lista = tipo === "uscite" ? getSpese(year) : getEntrate(year);
+
+    // 1) Match per ricId
+    const perId = lista.some((mese) => mese.some((x) => x.ricId === ric.id));
+    if (perId) return true;
+
+    // 2) Fallback: stessa descrizione nel periodo del ricorrente
+    if (!ric.dataInizio || !ric.dataFine) return false;
+    const inizio = ric.dataInizio + "-01";
+    const [yF, mF] = ric.dataFine.split("-").map(Number);
+    const lastDay = yF && mF ? new Date(yF, mF, 0).getDate() : 31;
+    const fine = ric.dataFine + "-" + String(lastDay).padStart(2, "0");
+
+    return lista.some((mese) =>
+      mese.some((x) => {
+        if (!x.data || x.descrizione !== ric.descrizione) return false;
+        return x.data >= inizio && x.data <= fine;
+      })
+    );
+  }
+
   function renderRicColumn(tipo, container) {
-    const items = getRicorrenti()[tipo] || [];
+    const origini = getRicorrenti()[tipo] || [];
     container.innerHTML = "";
 
-    if (items.length === 0) {
+    if (origini.length === 0) {
       container.innerHTML =
         '<div class="ricorrenti-empty">Nessuna voce ricorrente</div>';
       return;
     }
 
-    items.forEach((ric, idx) => {
+    // Ordine alfabetico stabile per descrizione (mantiene l'indice originale
+    // per la modifica/eliminazione)
+    const items = origini
+      .map((ric, idx) => ({ ric, idx }))
+      .sort((a, b) =>
+        a.ric.descrizione.localeCompare(b.ric.descrizione, "it")
+      );
+
+    items.forEach(({ ric, idx }) => {
       const item = document.createElement("div");
       item.className = "ricorrente-item";
 
@@ -62,23 +99,10 @@
       // Verifica se questa ricorrente è già stata applicata al planning
       let statoBadge = "";
       const year = getCurrentYear();
-      if (tipo === "uscite") {
-        const spese = getSpese(year);
-        const applicata = spese.some((mese) =>
-          mese.some((s) => s.ricId === ric.id)
-        );
-        statoBadge = applicata
-          ? '<span class="ric-stato applicata"><i class="fas fa-check-circle"></i> Applicata</span>'
-          : '<span class="ric-stato nuova"><i class="fas fa-plus-circle"></i> Nuova</span>';
-      } else {
-        const entrate = getEntrate(year);
-        const applicata = entrate.some((mese) =>
-          mese.some((e) => e.ricId === ric.id)
-        );
-        statoBadge = applicata
-          ? '<span class="ric-stato applicata"><i class="fas fa-check-circle"></i> Applicata</span>'
-          : '<span class="ric-stato nuova"><i class="fas fa-plus-circle"></i> Nuova</span>';
-      }
+      const applicata = ricorrenteApplicata(tipo, ric, year);
+      statoBadge = applicata
+        ? '<span class="ric-stato applicata"><i class="fas fa-check-circle"></i> Applicata</span>'
+        : '<span class="ric-stato nuova"><i class="fas fa-plus-circle"></i> Nuova</span>';
 
       item.innerHTML = `
         <span class="ric-desc">${ric.descrizione}</span>

@@ -59,17 +59,16 @@
     <!-- MAIN -->
     <div class="main">
       <div class="top-bar">
-        <h2><i class="fas fa-calendar-check"></i> Planning annuale</h2>
-        <div class="stato-legend" title="Legenda stati uscite">
-          <span class="legend-item"
-            ><span class="legend-dot eseguita"></span>eseguita</span
-          >
-          <span class="legend-item"
-            ><span class="legend-dot preventivata"></span>preventivata</span
-          >
-          <span class="legend-item"
-            ><span class="legend-dot scaduta"></span>scaduta</span
-          >
+        <div style="display:flex; align-items:center; gap:12px;">
+          <h2><i class="fas fa-calendar-check"></i> Planning annuale</h2>
+          <div class="month-carousel-controls" style="margin-left:10px;">
+            <button class="month-nav-btn prev" type="button" aria-label="Mese precedente" style="width:26px;height:26px;border-radius:8px;">
+              <i class="fas fa-chevron-left"></i>
+            </button>
+            <button class="month-nav-btn next" type="button" aria-label="Mese successivo" style="width:26px;height:26px;border-radius:8px;">
+              <i class="fas fa-chevron-right"></i>
+            </button>
+          </div>
         </div>
         <div class="riepilogo-annuale" id="riepilogoAnnuale">
           <div class="riep-wrapper">

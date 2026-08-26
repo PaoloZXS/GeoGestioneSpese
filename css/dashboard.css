@@ -35,19 +35,61 @@
   background: #ef4444;
 }
 
-/* Griglia: 3 righe, 4 colonne */
+/* Griglia: slider orizzontale a 6 card visibili */
 .planning-grid {
-  display: grid;
-  grid-template-rows: repeat(3, 1fr);
-  gap: 14px;
+  display: flex;
   flex: 1;
   min-height: 0;
 }
 
-.row-months {
+.month-carousel-shell {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+}
+
+.month-carousel-controls {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 0;
+}
+
+.month-nav-btn {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--card-border);
+  background: #fff;
+  border-radius: 10px;
+  cursor: pointer;
+  color: var(--text-primary);
+  font-size: 14px;
+  box-shadow: var(--shadow-sm);
+}
+
+.month-scroll-viewport {
+  flex: 1;
+  min-height: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.month-scroll-viewport::-webkit-scrollbar {
+  display: none;
+}
+
+.month-track {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 14px;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(380px, 1fr);
+  gap: 16px;
+  min-width: max-content;
+  align-items: stretch;
+  height: 100%;
   min-height: 0;
 }
 
@@ -61,6 +103,7 @@
   flex-direction: column;
   min-height: 0;
   height: 100%;
+  width: min(380px, 38vw);
   overflow: hidden;
   transition:
     border-color 0.15s,
@@ -90,13 +133,16 @@
 /* ---- MONTH HEADER ---- */
 .month-header {
   background: var(--blue-light);
-  padding: 8px 14px;
+  padding: 6px 10px;
   border-bottom: 2px solid var(--blue-border);
   flex-shrink: 0;
   min-height: 42px;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin: 0;
+  border-top-left-radius: var(--radius-xl);
+  border-top-right-radius: var(--radius-xl);
 }
 .month-header .month-title {
   font-weight: 600;
@@ -163,14 +209,44 @@
 .expense-list {
   flex: 1;
   overflow-y: auto;
-  /* Riserva sempre lo spazio della scrollbar così le righe non si restringono
-     rispetto al footer e le colonne restano allineate anche quando si scorre */
   scrollbar-gutter: stable;
-  padding: 6px 6px 4px 6px;
+  padding: 10px 8px 6px 8px;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
   min-height: 0;
+  height: 100%;
+}
+
+.expense-group-wrapper {
+  display: flex;
+  flex-direction: column;
+}
+
+.expense-children {
+  display: none;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 2px;
+  padding: 4px 4px 2px;
+  border-radius: 8px;
+}
+
+.expense-group-wrapper.expanded .expense-children {
+  display: flex;
+}
+
+.expense-group-wrapper.expanded .expense-children .expense-item {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(15, 23, 42, 0.08);
+}
+
+.expense-group-wrapper.expanded .expense-children .expense-item.uscita-row {
+  background: #fef2f2;
+}
+
+.expense-group-wrapper.expanded .expense-children .expense-item.entrata-row {
+  background: #d8f4e2;
 }
 
 .expense-list::-webkit-scrollbar {
@@ -185,22 +261,28 @@
   border-radius: 8px;
 }
 
-/* ---- EXPENSE ITEM (riga) — layout 5 colonne ---- */
+/* ---- EXPENSE ITEM (riga) — layout 4 colonne, senza icone ---- */
 .expense-item {
   background: transparent;
   border-radius: 8px;
-  padding: 4px 4px;
+  padding: 5px 6px;
   border: 1px solid var(--expense-border);
-  border-left-width: 4px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 66px 66px;
+  grid-template-columns: minmax(0, 1fr) 84px 84px;
   align-items: center;
   gap: 3px;
   cursor: pointer;
   transition: 0.1s;
-  min-height: 28px;
+  min-height: 32px;
   flex-shrink: 0;
   width: 100%;
+}
+.expense-item.expandable {
+  cursor: pointer;
+}
+.expense-item.child {
+  padding-left: 10px;
+  margin-left: 0;
 }
 .expense-item:hover {
   background: var(--expense-hover);
@@ -216,25 +298,18 @@
    Eseguita = nessuno sfondo (come la card) + bordo verde.
    Preventivata = blu chiaro + bordo blu. Scaduta = rosso chiaro + bordo rosso.
    Testo nero. */
-.expense-item.status-eseguita {
-  background: transparent;
-  border-left-color: var(--green);
-}
-.expense-item.status-preventivata {
-  background: #93c5fd;
-  border-left-color: var(--blue);
-}
-.expense-item.status-scaduta {
-  background: #fee2e2;
-  border-left-color: var(--red);
+.expense-item.uscita-row {
+  background: #f5d5d5;
 }
 
-/* Eseguita: importo colorato (verde per le entrate, rosso per le uscite).
-   Preventivata/Scaduta: importo nero (base .importo). */
-.expense-item.entrata-row.status-eseguita .importo.entrata {
+.expense-item.entrata-row {
+  background: #bbf7d0;
+}
+
+.expense-item.entrata-row .importo.entrata {
   color: #16a34a;
 }
-.expense-item.uscita-row.status-eseguita .importo.uscita {
+.expense-item.uscita-row .importo.uscita {
   color: #dc2626;
 }
 
@@ -248,8 +323,24 @@
   text-align: left;
   transition: color 0.2s;
 }
+.expense-item .desc .entry-icon {
+  margin-right: 6px;
+  font-size: 10px;
+  width: 14px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.expense-item .desc .entry-icon.status-scaduta {
+  color: #dc2626;
+}
+.expense-item .desc .entry-icon.status-preventivata {
+  color: #3b82f6;
+}
+.expense-item .desc .entry-icon.status-eseguita {
+  color: #16a34a;
+}
 .expense-item .importo {
-  font-weight: 600;
+  font-weight: 700;
   font-size: 11px;
   background: transparent;
   padding: 0 4px;
@@ -258,6 +349,12 @@
   justify-self: end;
   width: 100%;
   color: #000;
+}
+.expense-item .importo.entrata {
+  color: #16a34a;
+}
+.expense-item .importo.uscita {
+  color: #dc2626;
 }
 
 /* ---- MONTH TOTAL (entrate/uscite allineate sotto le colonne) ---- */
@@ -269,9 +366,9 @@
   font-size: 11px;
   color: var(--text-primary);
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 66px 66px;
+  grid-template-columns: minmax(0, 1fr) 84px 84px;
   align-items: center;
-  gap: 3px;
+  gap: 2px;
   background: transparent;
   border-radius: 0 0 var(--radius-xl) var(--radius-xl);
   flex-shrink: 0;
@@ -561,11 +658,11 @@
 /* ---- RESPONSIVE DASHBOARD ---- */
 @media (max-width: 1200px) {
   .row-months {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 10px;
   }
   .planning-grid {
-    grid-template-rows: repeat(4, 1fr);
+    grid-template-rows: repeat(3, 1fr);
     gap: 10px;
   }
   .page-wrapper {
@@ -605,14 +702,14 @@
   }
 }
 @media (max-width: 900px) {
-  /* Il layout a 3 colonne è già gestito da max-width: 1200px */
+  /* Il layout a 4 colonne è già gestito da max-width: 1200px */
 }
 @media (max-width: 700px) {
   .row-months {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
   }
   .planning-grid {
-    grid-template-rows: repeat(6, 1fr);
+    grid-template-rows: repeat(4, 1fr);
   }
   .entrate-list .entrata-item {
     grid-template-columns: auto 1fr auto;
@@ -627,10 +724,10 @@
 }
 @media (max-width: 500px) {
   .row-months {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
   }
   .planning-grid {
-    grid-template-rows: repeat(12, 1fr);
+    grid-template-rows: repeat(6, 1fr);
   }
   #entrateModal .modal-box {
     padding: 20px 18px 24px;
