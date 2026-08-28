@@ -20,6 +20,7 @@ class _InsertScreenState extends State<InsertScreen> {
       '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}';
   String _dataFine = '${DateTime.now().year}-12';
   String? _categoria;
+  String _stato = 'preventivata';
   List<Map<String, dynamic>> _categorie = [];
   bool _caricandoCategorie = true;
   bool _salvando = false;
@@ -201,15 +202,17 @@ class _InsertScreenState extends State<InsertScreen> {
         importo: importo,
         dataInizio: _dataInizio,
         dataFine: _dataFine,
+        stato: _stato,
       );
 
       if (!mounted) return;
       setState(() {
         _salvando = false;
         _categoria = null;
+        _stato = 'preventivata';
         _importoController.clear();
       });
-      _messaggio('Ricorrente salvato!');
+      _messaggio('Salvataggio eseguito correttamente');
     } catch (e) {
       if (!mounted) return;
       setState(() => _salvando = false);
@@ -226,6 +229,7 @@ class _InsertScreenState extends State<InsertScreen> {
     required double importo,
     required String dataInizio,
     required String dataFine,
+    required String stato,
   }) async {
     final year = DateTime.now().year;
     final inizio = DateTime.parse('$dataInizio-01');
@@ -246,12 +250,12 @@ class _InsertScreenState extends State<InsertScreen> {
       if (tipo == 'uscite') {
         await tursoExecute(
           'INSERT INTO spese (id, data, descrizione, importo, stato, ric_id, origine, visto_da_desktop) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-          [id, dataStr, descrizione, importo, 'preventivata', ricId, 'mobile', 0],
+          [id, dataStr, descrizione, importo, stato, ricId, 'mobile', 0],
         );
       } else {
         await tursoExecute(
           'INSERT INTO entrate (id, data, descrizione, importo, stato, ric_id, origine, visto_da_desktop) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-          [id, dataStr, descrizione, importo, 'preventivata', ricId, 'mobile', 0],
+          [id, dataStr, descrizione, importo, stato, ricId, 'mobile', 0],
         );
       }
     }
@@ -354,6 +358,33 @@ class _InsertScreenState extends State<InsertScreen> {
                 labelText: 'Importo (€)',
                 prefixIcon: Icon(Icons.euro),
               ),
+            ),
+            const SizedBox(height: 16),
+
+            // ---- STATO (eseguita / preventivata / scaduta) ----
+            DropdownButtonFormField<String>(
+              value: _stato,
+              decoration: const InputDecoration(
+                labelText: 'Stato',
+                prefixIcon: Icon(Icons.flag),
+              ),
+              items: const [
+                DropdownMenuItem(
+                  value: 'eseguita',
+                  child: Text('Eseguita'),
+                ),
+                DropdownMenuItem(
+                  value: 'preventivata',
+                  child: Text('Preventivata'),
+                ),
+                DropdownMenuItem(
+                  value: 'scaduta',
+                  child: Text('Scaduta'),
+                ),
+              ],
+              onChanged: _salvando
+                  ? null
+                  : (v) => setState(() => _stato = v ?? 'preventivata'),
             ),
             const SizedBox(height: 24),
 
