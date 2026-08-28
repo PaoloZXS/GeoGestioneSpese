@@ -1300,6 +1300,24 @@ async function segnaVociMobileComeViste(ids) {
        WHERE origine = 'mobile' AND visto_da_desktop = 0 AND id IN (${placeholders})`,
       idList
     );
+    // Aggiorna anche la cache in memoria: se dopo un salvataggio dell'anno le
+    // voci vengono risincronizzate (DELETE+INSERT), non devono tornare "non
+    // viste" (altrimenti il modale "Nuove voci dal cellulare" ricompare).
+    const visti = new Set(idList);
+    for (const year of Object.keys(_speseCache)) {
+      for (let m = 0; m < 12; m++) {
+        for (const s of _speseCache[year][m] || []) {
+          if (visti.has(s.id)) s.vistoDaDesktop = true;
+        }
+      }
+    }
+    for (const year of Object.keys(_entrateCache)) {
+      for (let m = 0; m < 12; m++) {
+        for (const e of _entrateCache[year][m] || []) {
+          if (visti.has(e.id)) e.vistoDaDesktop = true;
+        }
+      }
+    }
   } catch (e) {
     console.warn("Errore segnaVociMobileComeViste:", e.message);
   }
