@@ -376,8 +376,8 @@
   border-bottom: none;
 }
 .mobile-data {
-  font-size: 11px;
-  color: var(--text-muted);
+  font-size: 13px;
+  color: var(--text-primary);
   white-space: nowrap;
 }
 .mobile-tipo {
