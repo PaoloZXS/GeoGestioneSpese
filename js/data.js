@@ -35,9 +35,11 @@ const TURSO_TOKEN =
 function tursoArg(v) {
   if (v === null || v === undefined) return { type: "null", value: null };
   if (typeof v === "number") {
+    // Nota: per i decimali il server Turso vuole `float` con valore numerico
+    // (f64), non `real` con stringa.
     return Number.isInteger(v)
       ? { type: "integer", value: String(v) }
-      : { type: "real", value: String(v) };
+      : { type: "float", value: v };
   }
   if (typeof v === "boolean") return { type: "integer", value: v ? "1" : "0" };
   return { type: "text", value: String(v) };
@@ -48,7 +50,7 @@ function tursoUnwrap(v) {
   if (v === null || v === undefined) return null;
   if (typeof v === "object" && v !== null && "type" in v) {
     if (v.type === "null" || v.value === null) return null;
-    if (v.type === "integer" || v.type === "real") return Number(v.value);
+    if (v.type === "integer" || v.type === "float") return Number(v.value);
     if (v.type === "blob") return v.base64 ?? v.value;
     return v.value;
   }

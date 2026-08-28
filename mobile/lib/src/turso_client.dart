@@ -11,11 +11,13 @@ import 'package:http/http.dart' as http;
 
 import 'turso_config.dart';
 
-/// Converte un valore Dart nel formato Hrana 2 per gli argomenti SQL.
+/// Converte un valore Dart nel formato argomenti Turso (Hrana 2).
+/// Nota: per i decimali il server Turso vuole `float` con valore numerico (f64),
+/// non `real` con stringa.
 Map<String, dynamic> _toArg(dynamic v) {
   if (v == null) return {'type': 'null', 'value': null};
   if (v is int) return {'type': 'integer', 'value': v.toString()};
-  if (v is double) return {'type': 'real', 'value': v.toString()};
+  if (v is double) return {'type': 'float', 'value': v};
   if (v is bool) return {'type': 'integer', 'value': v ? '1' : '0'};
   return {'type': 'text', 'value': v.toString()};
 }
@@ -24,7 +26,7 @@ Map<String, dynamic> _toArg(dynamic v) {
 dynamic _unwrap(dynamic v) {
   if (v is Map && v.containsKey('type')) {
     if (v['type'] == 'null' || v['value'] == null) return null;
-    if (v['type'] == 'integer' || v['type'] == 'real') {
+    if (v['type'] == 'integer' || v['type'] == 'float') {
       return num.tryParse(v['value'].toString());
     }
     if (v['type'] == 'blob') return v['base64'] ?? v['value'];
@@ -79,7 +81,14 @@ Future<List<Map<String, dynamic>>> tursoFetchAll(
   }
   final response = first['response'] as Map<String, dynamic>? ?? {};
   final result = response['result'] as Map<String, dynamic>? ?? {};
-  final cols = (result['cols'] as List<dynamic>? ?? []).cast<String>();
+  // Turso restituisce le colonne come oggetti {"name", "decltype"}.
+  // Supporta anche il formato stringa per compatibilità.
+  final rawCols = result['cols'] as List<dynamic>? ?? [];
+  final cols = rawCols.map((c) {
+    if (c is String) return c;
+    if (c is Map) return (c['name'] ?? '').toString();
+    return c.toString();
+  }).toList();
   final rows = result['rows'] as List<dynamic>? ?? [];
   return rows.map((row) {
     final list = row as List<dynamic>;
