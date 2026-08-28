@@ -406,18 +406,20 @@
 
         mobileOkBtn.addEventListener("click", async function () {
           mostraSpinner("Aggiornamento in corso...");
+          // 1) Segna subito come viste le voci dal cellulare: prima del reload,
+          //    così la marcatura non viene mai saltata (anche se il
+          //    ricaricamento dei dati dovesse fallire).
           try {
-            // Le voci dal cellulare sono già state inserite dall'app APK
-            // (con lo stato scelto: eseguita/preventivata/scaduta). Qui basta
-            // ricaricare i dati e segnarle come viste: NON rigenerare i
-            // ricorrenti, altrimenti si duplicano le voci e si azzera lo stato.
-            await caricaDaSupabase();
-            renderPlanning();
             await segnaVociMobileComeViste(
               vociMobile.map(function (v) {
                 return v.id;
               })
             );
+          } catch (_) {}
+          // 2) Ricarica i dati e renderizza.
+          try {
+            await caricaDaSupabase();
+            renderPlanning();
           } catch (_) {}
 
           nascondiSpinner();
