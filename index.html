@@ -405,9 +405,12 @@
         }
 
         mobileOkBtn.addEventListener("click", async function () {
-          mostraSpinner("Applicazione ricorrenti in corso...");
+          mostraSpinner("Aggiornamento in corso...");
           try {
-            await applicaRicorrenti(getCurrentYear());
+            // Le voci dal cellulare sono già state inserite dall'app APK
+            // (con lo stato scelto: eseguita/preventivata/scaduta). Qui basta
+            // ricaricare i dati e segnarle come viste: NON rigenerare i
+            // ricorrenti, altrimenti si duplicano le voci e si azzera lo stato.
             await caricaDaSupabase();
             renderPlanning();
             await segnaVociMobileComeViste(
