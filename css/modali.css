@@ -378,6 +378,7 @@
 .mobile-data {
   font-size: 13px;
   color: var(--text-primary);
+  font-weight: 500;
   white-space: nowrap;
 }
 .mobile-tipo {
