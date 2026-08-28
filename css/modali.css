@@ -345,7 +345,7 @@
 
 /* ---- MODALE VOCI MOBILE ---- */
 .mobile-modal {
-  max-width: 430px;
+  max-width: 560px;
   display: flex;
   flex-direction: column;
   min-height: 420px;
@@ -398,6 +398,10 @@
 .mobile-desc {
   flex: 1;
   font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 .mobile-importo {
   font-weight: 600;

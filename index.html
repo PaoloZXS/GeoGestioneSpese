@@ -357,28 +357,21 @@
             mobileList.appendChild(item);
           });
 
-          // Righe gruppo (ricorrenti): descrizione · periodo · mensile · totale
+          // Righe gruppo (ricorrenti): periodo · descrizione · importo mensile
           gruppi.forEach(function (g) {
             var primo = g.voci[0].data;
             var ultimo = g.voci[g.voci.length - 1].data;
-            var totale = 0;
-            g.voci.forEach(function (v) {
-              totale += Number(v.importo);
-            });
             var item = document.createElement("div");
             item.className = "mobile-item";
             item.innerHTML =
-              '<span class="mobile-desc">' +
-              g.descrizione +
-              "</span>" +
               '<span class="mobile-data">' +
               formatPeriodoMes(primo, ultimo) +
               "</span>" +
+              '<span class="mobile-desc">' +
+              g.descrizione +
+              "</span>" +
               '<span class="mobile-importo">' +
               formatEuro(g.importoMensile) +
-              "</span>" +
-              '<span class="mobile-totale">' +
-              formatEuro(totale) +
               "</span>";
             mobileList.appendChild(item);
           });
