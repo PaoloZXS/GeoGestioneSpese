@@ -4,3 +4,6 @@ dist/
 *.log
 informazioni.txt
 .vscode/
+process.env
+bg_result.txt
+repomix-output.xml

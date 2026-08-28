@@ -312,24 +312,9 @@
       }
     }
 
-    // DELETE mirato su Supabase: SOLO gli id selezionati
+    // DELETE mirato su Turso: SOLO gli id selezionati
     // (niente "cancella tutto l'anno e reinserisci": rischia di togliere più dati)
-    const headers = {
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${SUPABASE_ANON_KEY}`
-    };
-    if (idsSpese.size > 0) {
-      await fetch(
-        `${SUPABASE_URL}/rest/v1/spese?id=in.(${[...idsSpese].join(",")})`,
-        { method: "DELETE", headers }
-      );
-    }
-    if (idsEntrate.size > 0) {
-      await fetch(
-        `${SUPABASE_URL}/rest/v1/entrate?id=in.(${[...idsEntrate].join(",")})`,
-        { method: "DELETE", headers }
-      );
-    }
+    await tursoDeleteByIds(idsSpese, idsEntrate);
   }
 
   // =============================================

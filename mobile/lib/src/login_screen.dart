@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'insert_screen.dart';
-import 'supabase_config.dart';
+import 'turso_config.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});

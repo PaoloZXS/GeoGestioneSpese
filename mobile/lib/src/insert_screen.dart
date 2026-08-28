@@ -1,9 +1,9 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'login_screen.dart';
+import 'turso_client.dart';
 
 class InsertScreen extends StatefulWidget {
   const InsertScreen({super.key});
@@ -13,7 +13,6 @@ class InsertScreen extends StatefulWidget {
 }
 
 class _InsertScreenState extends State<InsertScreen> {
-  final _supabase = Supabase.instance.client;
   final _importoController = TextEditingController();
 
   bool _isEntrata = false; // false = uscita
@@ -44,11 +43,10 @@ class _InsertScreenState extends State<InsertScreen> {
     });
     try {
       final tipo = _isEntrata ? 'entrate' : 'uscite';
-      final rows = await _supabase
-          .from('categorie')
-          .select('descrizione')
-          .eq('tipo', tipo)
-          .order('descrizione');
+      final rows = await tursoFetchAll(
+        'SELECT descrizione FROM categorie WHERE tipo = ? ORDER BY descrizione',
+        [tipo],
+      );
       if (!mounted) return;
       // Ordine alfabetico garantito (indipendente dalla collation del DB)
       final lista = rows.cast<Map<String, dynamic>>();
@@ -189,16 +187,11 @@ class _InsertScreenState extends State<InsertScreen> {
           '${DateTime.now().millisecondsSinceEpoch}-'
           '${Random().nextInt(0xFFFFFF).toRadixString(36)}';
 
-      // Salva la voce ricorrente su Supabase
-      await _supabase.from('ricorrenti').insert({
-        'id': id,
-        'tipo': tipo,
-        'descrizione': categoria,
-        'importo': importo,
-        'giorno': 1,
-        'data_inizio': _dataInizio,
-        'data_fine': _dataFine,
-      });
+      // Salva la voce ricorrente su Turso
+      await tursoExecute(
+        'INSERT INTO ricorrenti (id, tipo, descrizione, importo, giorno, data_inizio, data_fine) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [id, tipo, categoria, importo, 1, _dataInizio, _dataFine],
+      );
 
       // Applica i ricorrenti all'anno corrente (genera spese/entrate)
       await _applicaRicorrenti(
@@ -251,27 +244,15 @@ class _InsertScreenState extends State<InsertScreen> {
           '${Random().nextInt(0xFFFFFF).toRadixString(36)}';
 
       if (tipo == 'uscite') {
-        await _supabase.from('spese').insert({
-          'id': id,
-          'data': dataStr,
-          'descrizione': descrizione,
-          'importo': importo,
-          'stato': 'preventivata',
-          'ric_id': ricId,
-          'origine': 'mobile',
-          'visto_da_desktop': false,
-        });
+        await tursoExecute(
+          'INSERT INTO spese (id, data, descrizione, importo, stato, ric_id, origine, visto_da_desktop) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+          [id, dataStr, descrizione, importo, 'preventivata', ricId, 'mobile', 0],
+        );
       } else {
-        await _supabase.from('entrate').insert({
-          'id': id,
-          'data': dataStr,
-          'descrizione': descrizione,
-          'importo': importo,
-          'stato': 'preventivata',
-          'ric_id': ricId,
-          'origine': 'mobile',
-          'visto_da_desktop': false,
-        });
+        await tursoExecute(
+          'INSERT INTO entrate (id, data, descrizione, importo, stato, ric_id, origine, visto_da_desktop) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+          [id, dataStr, descrizione, importo, 'preventivata', ricId, 'mobile', 0],
+        );
       }
     }
   }

@@ -1,44 +1,132 @@
 /* =============================================
-   DATA LAYER — Solo Supabase + cache in memoria
+   DATA LAYER — Turso (SQLite edge) + cache in memoria
    ============================================= */
 
 const DATA_RIFERIMENTO = new Date(2026, 6, 26);
 
 // =============================================
-// SUPABASE CONFIG
+// TURSO CONFIG (da process.env)
 // =============================================
-const SUPABASE_URL = "https://pxbgbzizfrojbmvvtpzc.supabase.co";
-const SUPABASE_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB4Ymdieml6ZnJvamJtdnZ0cHpjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzMjY4NDUsImV4cCI6MjEwMDkwMjg0NX0.sybF0NAU_p-UghS0ckLSYa0yEVjT97EzJYnZ_4H9gtw";
+// TURSO_URL / TURSO_TOKEN vengono letti da process.env quando disponibile
+// (es. serverless/Vercel). Nel browser si usano i valori di fallback.
+// Nota sicurezza: il token RW è esposto nel client — in produzione valutare
+// un proxy API lato server o un token con privilegi ridotti.
 
-// =============================================
-// SUPABASE REST HELPER
-// =============================================
-
-async function sb(method, table, options = {}) {
-  let url = `${SUPABASE_URL}/rest/v1/${table}`;
-  const headers = {
-    apikey: SUPABASE_ANON_KEY,
-    Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-    "Content-Type": "application/json",
-    Prefer: "return=minimal"
-  };
-
-  if (options.params) {
-    url += "?" + new URLSearchParams(options.params).toString();
+function normalizzaTursoUrl(url) {
+  if (url && url.startsWith("libsql://")) {
+    return "https://" + url.slice("libsql://".length);
   }
+  return url;
+}
 
-  const resp = await fetch(url, {
-    method,
-    headers,
-    body: options.body ? JSON.stringify(options.body) : undefined
+const TURSO_URL = normalizzaTursoUrl(
+  (typeof process !== "undefined" && process.env && process.env.TURSO_URL) ||
+    "https://geogestionespese-paolozxs.aws-eu-west-1.turso.io"
+);
+const TURSO_TOKEN =
+  (typeof process !== "undefined" && process.env && process.env.TURSO_TOKEN) ||
+  "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3ODc5MTQxMDYsImlkIjoiMDFhMDQ3ZmItOTMwMS03NmQ4LTgyNTctNWI5YTNiNzJmMTY5Iiwia2lkIjoidmQ2VmduNUs4d1pEY1hqcXNVLThRR0lWbnZXazExeW1mRlVkVmJNX3owdyIsInJpZCI6ImQxM2Y4NDlkLWY4NWMtNDVlNy1iZDQ1LTczMzg5YWIyOGVkNSJ9.IcfC4DvFZ34pVqIDZF_gmQfFx3HvcOXhj4x-36jsBfrU-pxk3a0jsDfkHHxDs6kYs2bp580wYbE1HzhqQXsKBw";
+
+// =============================================
+// TURSO REST HELPER (SQL over HTTP — /v2/pipeline)
+// =============================================
+
+// Converte un valore JS nel formato Hrana 2 per gli argomenti SQL
+function tursoArg(v) {
+  if (v === null || v === undefined) return { type: "null", value: null };
+  if (typeof v === "number") {
+    return Number.isInteger(v)
+      ? { type: "integer", value: String(v) }
+      : { type: "real", value: String(v) };
+  }
+  if (typeof v === "boolean") return { type: "integer", value: v ? "1" : "0" };
+  return { type: "text", value: String(v) };
+}
+
+// Estrae il valore di una cella dalla risposta Turso
+function tursoUnwrap(v) {
+  if (v === null || v === undefined) return null;
+  if (typeof v === "object" && v !== null && "type" in v) {
+    if (v.type === "null" || v.value === null) return null;
+    if (v.type === "integer" || v.type === "real") return Number(v.value);
+    if (v.type === "blob") return v.base64 ?? v.value;
+    return v.value;
+  }
+  return v;
+}
+
+/**
+ * Esegue una pipeline Turso. `stmts` è un array di { sql, args }.
+ * Le istruzioni girano in un'unica richiesta HTTP (batch).
+ */
+async function tursoPipeline(stmts) {
+  const requests = stmts.map((s) => ({
+    type: "execute",
+    stmt: {
+      sql: s.sql,
+      args: (s.args || []).map(tursoArg),
+      named_args: []
+    }
+  }));
+  requests.push({ type: "close" });
+  const resp = await fetch(`${TURSO_URL}/v2/pipeline`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${TURSO_TOKEN}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ requests })
   });
   if (!resp.ok) {
     const text = await resp.text().catch(() => "");
-    throw new Error(`Supabase ${method} ${table}: ${resp.status} ${text}`);
+    throw new Error(`Turso (${resp.status}): ${text}`);
   }
-  if (method === "GET") return resp.json();
-  return resp;
+  return resp.json();
+}
+
+/** Esegue una query SELECT e restituisce un array di oggetti. */
+async function tursoFetchAll(sql, params = []) {
+  const data = await tursoPipeline([{ sql, args: params }]);
+  const res = data && data.results && data.results[0];
+  if (!res) throw new Error("Turso: nessuna risposta");
+  if (res.type === "error") {
+    const err = (res.error && (res.error.message || res.error.code)) || "errore sconosciuto";
+    throw new Error(`Turso: ${err}`);
+  }
+  if (res.type !== "ok") throw new Error("Turso: risposta non valida");
+  const result = res.response && res.response.result;
+  if (!result || !result.cols) return [];
+  const cols = result.cols;
+  return (result.rows || []).map((row) => {
+    const obj = {};
+    cols.forEach((c, i) => {
+      obj[typeof c === "string" ? c : c.name] = tursoUnwrap(row[i]);
+    });
+    return obj;
+  });
+}
+
+/** Esegue una singola istruzione (DDL/INSERT/UPDATE/DELETE). */
+async function tursoExecute(sql, params = []) {
+  await tursoPipeline([{ sql, args: params }]);
+}
+
+/** Esegue più istruzioni in un'unica richiesta HTTP (batch). */
+async function tursoBatch(stmts) {
+  await tursoPipeline(stmts);
+}
+
+// =============================================
+// PRONTEZZA TABELLE (evita race al primo avvio)
+// =============================================
+
+let _tursoPronto = null;
+
+// Restituisce una promise che si risolve quando le tabelle sono state create
+// (le query che girano prima di initTurso fallirebbero con "no such table").
+function quandoTursoPronto() {
+  if (!_tursoPronto) _tursoPronto = initTurso();
+  return _tursoPronto;
 }
 
 // =============================================
@@ -52,7 +140,7 @@ let _categorieCache = null;
 let _ricorrentiCache = null;
 
 // =============================================
-// CARICAMENTO INIZIALE DA SUPABASE
+// CARICAMENTO INIZIALE DA TURSO
 // =============================================
 
 // =============================================
@@ -99,138 +187,318 @@ function caricaDaJson(dati) {
     : getDefaultRicorrenti();
 }
 
-async function caricaDaSupabase() {
+// Costruisce le 4 cache partendo dalle righe del DB (Turso o Supabase legacy).
+// Formato righe: spese/entrate (id, data, descrizione, importo, stato,
+// origine, visto_da_desktop, ric_id), categorie (id, tipo, descrizione),
+// ricorrenti (id, tipo, descrizione, importo, giorno, data_inizio, data_fine).
+function costruisciCacheDaRighe(spese, entrate, categorie, ricorrenti) {
+  // --- Spese ---
+  _speseCache = {};
+  for (const s of spese || []) {
+    const y = String(s.data).substring(0, 4);
+    const m = parseInt(String(s.data).substring(5, 7)) - 1;
+    if (!_speseCache[y])
+      _speseCache[y] = Array.from({ length: 12 }, () => []);
+    // Converti ric_id -> ricId, ignora created_at
+    _speseCache[y][m].push({
+      id: s.id,
+      data: s.data,
+      descrizione: s.descrizione,
+      importo: s.importo,
+      stato: s.stato,
+      origine: s.origine || "desktop",
+      vistoDaDesktop: Boolean(s.visto_da_desktop) || false,
+      ...(s.ric_id && { ricId: s.ric_id })
+    });
+  }
+
+  // --- Entrate ---
+  _entrateCache = {};
+  for (const e of entrate || []) {
+    const y = String(e.data).substring(0, 4);
+    const m = parseInt(String(e.data).substring(5, 7)) - 1;
+    if (!_entrateCache[y])
+      _entrateCache[y] = Array.from({ length: 12 }, () => []);
+    // Converti ric_id -> ricId, ignora created_at
+    _entrateCache[y][m].push({
+      id: e.id,
+      data: e.data,
+      descrizione: e.descrizione,
+      importo: e.importo,
+      stato: e.stato || "preventivata",
+      origine: e.origine || "desktop",
+      vistoDaDesktop: Boolean(e.visto_da_desktop) || false,
+      ...(e.ric_id && { ricId: e.ric_id })
+    });
+  }
+
+  // --- Auto-scadenza: spese ed entrate con data passata diventano "scaduta" ---
+  const oggi = new Date();
+  oggi.setHours(0, 0, 0, 0);
+  for (const year of Object.keys(_speseCache)) {
+    for (let m = 0; m < 12; m++) {
+      const lista = _speseCache[year][m];
+      if (!lista) continue;
+      for (const s of lista) {
+        if (s.stato === "preventivata") {
+          const dataSpesa = new Date(s.data + "T00:00:00");
+          if (dataSpesa < oggi) {
+            s.stato = "scaduta";
+          }
+        }
+      }
+    }
+  }
+  for (const year of Object.keys(_entrateCache)) {
+    for (let m = 0; m < 12; m++) {
+      const lista = _entrateCache[year][m];
+      if (!lista) continue;
+      for (const e of lista) {
+        if (e.stato === "preventivata") {
+          const dataEntrata = new Date(e.data + "T00:00:00");
+          if (dataEntrata < oggi) {
+            e.stato = "scaduta";
+          }
+        }
+      }
+    }
+  }
+
+  // --- Categorie ---
+  _categorieCache = { entrate: [], uscite: [] };
+  for (const c of categorie || []) {
+    if (!_categorieCache[c.tipo]) _categorieCache[c.tipo] = [];
+    _categorieCache[c.tipo].push({ id: c.id, descrizione: c.descrizione });
+  }
+
+  // --- Ricorrenti ---
+  _ricorrentiCache = { entrate: [], uscite: [] };
+  for (const r of ricorrenti || []) {
+    if (!_ricorrentiCache[r.tipo]) _ricorrentiCache[r.tipo] = [];
+    // Converti data_inizio -> dataInizio, data_fine -> dataFine
+    _ricorrentiCache[r.tipo].push({
+      id: r.id,
+      descrizione: r.descrizione,
+      importo: r.importo,
+      giorno: r.giorno || 1,
+      dataInizio: r.data_inizio,
+      dataFine: r.data_fine
+    });
+  }
+}
+
+// Legge i dati da Turso e popola le cache
+async function caricaDaTurso() {
+  const [spese, entrate, categorie, ricorrenti] = await Promise.all([
+    tursoFetchAll("SELECT * FROM spese ORDER BY data ASC"),
+    tursoFetchAll("SELECT * FROM entrate ORDER BY data ASC"),
+    tursoFetchAll("SELECT * FROM categorie"),
+    tursoFetchAll("SELECT * FROM ricorrenti")
+  ]);
+  costruisciCacheDaRighe(spese, entrate, categorie, ricorrenti);
+  console.log("✅ Dati caricati da Turso");
+  return true;
+}
+
+// =============================================
+// CREAZIONE TABELLE TURSO (idempotente)
+// =============================================
+
+async function initTurso() {
+  await tursoExecute(`CREATE TABLE IF NOT EXISTS categorie (
+    id TEXT PRIMARY KEY,
+    tipo TEXT NOT NULL,
+    descrizione TEXT NOT NULL
+  )`);
+  await tursoExecute(`CREATE TABLE IF NOT EXISTS ricorrenti (
+    id TEXT PRIMARY KEY,
+    tipo TEXT NOT NULL,
+    descrizione TEXT NOT NULL,
+    importo REAL NOT NULL,
+    giorno INTEGER DEFAULT 1,
+    data_inizio TEXT NOT NULL,
+    data_fine TEXT NOT NULL
+  )`);
+  await tursoExecute(`CREATE TABLE IF NOT EXISTS spese (
+    id TEXT PRIMARY KEY,
+    data TEXT NOT NULL,
+    descrizione TEXT NOT NULL,
+    importo REAL NOT NULL,
+    stato TEXT NOT NULL DEFAULT 'preventivata',
+    origine TEXT DEFAULT 'desktop',
+    visto_da_desktop INTEGER DEFAULT 0,
+    ric_id TEXT
+  )`);
+  await tursoExecute(`CREATE TABLE IF NOT EXISTS entrate (
+    id TEXT PRIMARY KEY,
+    data TEXT NOT NULL,
+    descrizione TEXT NOT NULL,
+    importo REAL NOT NULL,
+    stato TEXT NOT NULL DEFAULT 'preventivata',
+    origine TEXT DEFAULT 'desktop',
+    visto_da_desktop INTEGER DEFAULT 0,
+    ric_id TEXT
+  )`);
+  await tursoExecute(`CREATE TABLE IF NOT EXISTS snapshot_storico (
+    id TEXT PRIMARY KEY,
+    timestamp TEXT NOT NULL,
+    operazione TEXT,
+    spese TEXT NOT NULL,
+    entrate TEXT NOT NULL,
+    categorie TEXT NOT NULL,
+    ricorrenti TEXT NOT NULL,
+    dati TEXT,
+    created_at TEXT
+  )`);
+}
+
+// =============================================
+// MIGRAZIONE AUTOMATICA SUPABASE → TURSO (una sola volta)
+// =============================================
+
+const MIGRAZIONE_FLAG = "geo_turso_migrated_v1";
+
+// true se serve eseguire la migrazione (flag assente E DB senza dati strutturali)
+async function migrazioneNecessaria() {
+  try {
+    if (localStorage.getItem(MIGRAZIONE_FLAG) === "1") return false;
+  } catch (_) {}
+  try {
+    // Se esistono già dati strutturali (spese, categorie o ricorrenti) la
+    // migrazione è già stata completata → non rifarla (importante anche se
+    // l'utente svuota manualmente le spese per ripartire da zero).
+    const check = await tursoFetchAll(
+      "SELECT (SELECT COUNT(*) FROM spese) AS s, (SELECT COUNT(*) FROM categorie) AS c, (SELECT COUNT(*) FROM ricorrenti) AS r"
+    );
+    const row = check && check[0] ? check[0] : {};
+    const s = Number(row.s) || 0;
+    const c = Number(row.c) || 0;
+    const r = Number(row.r) || 0;
+    if (s > 0 || c > 0 || r > 0) {
+      segnaMigrazioneFatta();
+      return false;
+    }
+  } catch (_) {}
+  return true;
+}
+
+function segnaMigrazioneFatta() {
+  try {
+    localStorage.setItem(MIGRAZIONE_FLAG, "1");
+  } catch (_) {}
+}
+
+// =============================================
+// CARICAMENTO DA SUPABASE (SOLO migrazione legacy)
+// =============================================
+
+const SUPABASE_URL_LEGACY = "https://pxbgbzizfrojbmvvtpzc.supabase.co";
+const SUPABASE_ANON_KEY_LEGACY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB4Ymdieml6ZnJvamJtdnZ0cHpjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzMjY4NDUsImV4cCI6MjEwMDkwMjg0NX0.sybF0NAU_p-UghS0ckLSYa0yEVjT97EzJYnZ_4H9gtw";
+
+// Helper REST verso Supabase — usato SOLO per la migrazione una tantum
+async function sbLegacy(method, table, options = {}) {
+  let url = `${SUPABASE_URL_LEGACY}/rest/v1/${table}`;
+  const headers = {
+    apikey: SUPABASE_ANON_KEY_LEGACY,
+    Authorization: `Bearer ${SUPABASE_ANON_KEY_LEGACY}`,
+    "Content-Type": "application/json",
+    Prefer: "return=minimal"
+  };
+
+  if (options.params) {
+    url += "?" + new URLSearchParams(options.params).toString();
+  }
+
+  const resp = await fetch(url, {
+    method,
+    headers,
+    body: options.body ? JSON.stringify(options.body) : undefined
+  });
+  if (!resp.ok) {
+    const text = await resp.text().catch(() => "");
+    throw new Error(`Supabase ${method} ${table}: ${resp.status} ${text}`);
+  }
+  if (method === "GET") return resp.json();
+  return resp;
+}
+
+// Migra: carica i dati (da Supabase come prima; se irraggiungibile da
+// data.json), riempie le cache e scrive tutto su Turso
+async function migraDaSupabase() {
   try {
     const [spese, entrate, categorie, ricorrenti] = await Promise.all([
-      sb("GET", "spese", { params: { select: "*", order: "data.asc" } }),
-      sb("GET", "entrate", { params: { select: "*", order: "data.asc" } }),
-      sb("GET", "categorie", { params: { select: "*" } }),
-      sb("GET", "ricorrenti", { params: { select: "*" } })
+      sbLegacy("GET", "spese", { params: { select: "*", order: "data.asc" } }),
+      sbLegacy("GET", "entrate", { params: { select: "*", order: "data.asc" } }),
+      sbLegacy("GET", "categorie", { params: { select: "*" } }),
+      sbLegacy("GET", "ricorrenti", { params: { select: "*" } })
     ]);
-
-    // --- Spese ---
-    _speseCache = {};
-    for (const s of spese) {
-      const y = s.data.substring(0, 4);
-      const m = parseInt(s.data.substring(5, 7)) - 1;
-      if (!_speseCache[y])
-        _speseCache[y] = Array.from({ length: 12 }, () => []);
-      // Converti ric_id -> ricId, rimuovi created_at
-      _speseCache[y][m].push({
-        id: s.id,
-        data: s.data,
-        descrizione: s.descrizione,
-        importo: s.importo,
-        stato: s.stato,
-        origine: s.origine || "desktop",
-        vistoDaDesktop: s.visto_da_desktop || false,
-        ...(s.ric_id && { ricId: s.ric_id })
-      });
-    }
-
-    // --- Entrate ---
-    _entrateCache = {};
-    for (const e of entrate) {
-      const y = e.data.substring(0, 4);
-      const m = parseInt(e.data.substring(5, 7)) - 1;
-      if (!_entrateCache[y])
-        _entrateCache[y] = Array.from({ length: 12 }, () => []);
-      // Converti ric_id -> ricId, rimuovi created_at
-      _entrateCache[y][m].push({
-        id: e.id,
-        data: e.data,
-        descrizione: e.descrizione,
-        importo: e.importo,
-        stato: e.stato || "preventivata",
-        origine: e.origine || "desktop",
-        vistoDaDesktop: e.visto_da_desktop || false,
-        ...(e.ric_id && { ricId: e.ric_id })
-      });
-    }
-
-    // --- Auto-scadenza: spese ed entrate con data passata diventano "scaduta" ---
-    const oggi = new Date();
-    oggi.setHours(0, 0, 0, 0);
-    for (const year of Object.keys(_speseCache)) {
-      for (let m = 0; m < 12; m++) {
-        const lista = _speseCache[year][m];
-        if (!lista) continue;
-        for (const s of lista) {
-          if (s.stato === "preventivata") {
-            const dataSpesa = new Date(s.data + "T00:00:00");
-            if (dataSpesa < oggi) {
-              s.stato = "scaduta";
-            }
-          }
-        }
-      }
-    }
-    for (const year of Object.keys(_entrateCache)) {
-      for (let m = 0; m < 12; m++) {
-        const lista = _entrateCache[year][m];
-        if (!lista) continue;
-        for (const e of lista) {
-          if (e.stato === "preventivata") {
-            const dataEntrata = new Date(e.data + "T00:00:00");
-            if (dataEntrata < oggi) {
-              e.stato = "scaduta";
-            }
-          }
-        }
-      }
-    }
-
-    // --- Categorie ---
-    _categorieCache = { entrate: [], uscite: [] };
-    for (const c of categorie) {
-      if (!_categorieCache[c.tipo]) _categorieCache[c.tipo] = [];
-      _categorieCache[c.tipo].push({ id: c.id, descrizione: c.descrizione });
-    }
-
-    // --- Ricorrenti ---
-    _ricorrentiCache = { entrate: [], uscite: [] };
-    for (const r of ricorrenti) {
-      if (!_ricorrentiCache[r.tipo]) _ricorrentiCache[r.tipo] = [];
-      // Converti data_inizio -> dataInizio, data_fine -> dataFine
-      _ricorrentiCache[r.tipo].push({
-        id: r.id,
-        descrizione: r.descrizione,
-        importo: r.importo,
-        giorno: r.giorno || 1,
-        dataInizio: r.data_inizio,
-        dataFine: r.data_fine
-      });
-    }
-
-    _cacheReady = true;
-    console.log("✅ Dati caricati da Supabase");
-    window.dispatchEvent(new CustomEvent("dataReady"));
-    return true;
+    costruisciCacheDaRighe(spese, entrate, categorie, ricorrenti);
+    console.log("✅ Dati caricati da Supabase (migrazione)");
   } catch (e) {
-    console.warn("❌ Supabase non disponibile:", e.message);
-    // Fallback: carica da data.json
-    try {
-      const resp = await fetch("/api/load");
-      if (resp.ok) {
-        const dati = await resp.json();
-        caricaDaJson(dati);
-        console.log("✅ Dati caricati da data.json (fallback)");
+    // Supabase non raggiungibile (es. progetto free in pausa/evict) →
+    // si usa data.json come origine per la migrazione
+    console.warn("⚠️ Supabase non raggiungibile, uso data.json:", e.message);
+    const resp = await fetch("/api/load");
+    if (!resp.ok) throw new Error("data.json non disponibile per la migrazione");
+    const dati = await resp.json();
+    caricaDaJson(dati);
+    console.log("✅ Dati caricati da data.json (migrazione)");
+  }
+  await salvaTuttoSuTurso();
+  segnaMigrazioneFatta();
+  console.log("✅ Migrazione Supabase → Turso completata");
+  return true;
+}
+
+// =============================================
+// CARICAMENTO INIZIALE (Turso + migrazione + fallback data.json)
+// =============================================
+// Nota: il nome è mantenuto per compatibilità con index.html; ora il
+// caricamento avviene da Turso (con migrazione automatica da Supabase).
+
+async function caricaDaSupabase() {
+  try {
+    await quandoTursoPronto();
+    if (await migrazioneNecessaria()) {
+      try {
+        await migraDaSupabase();
         _cacheReady = true;
         window.dispatchEvent(new CustomEvent("dataReady"));
         return true;
+      } catch (e) {
+        console.warn("⚠️ Migrazione Supabase fallita:", e.message);
       }
-    } catch (e2) {
-      console.warn("Fallback data.json fallito:", e2.message);
     }
-    // Fallback estremo: dati vuoti
-    _speseCache = {};
-    _entrateCache = {};
-    _categorieCache = getDefaultCategorie();
-    _ricorrentiCache = getDefaultRicorrenti();
+    const ok = await caricaDaTurso();
     _cacheReady = true;
     window.dispatchEvent(new CustomEvent("dataReady"));
-    return false;
+    return ok;
+  } catch (e) {
+    console.warn("❌ Turso non disponibile:", e.message);
   }
+  // Fallback: carica da data.json
+  try {
+    const resp = await fetch("/api/load");
+    if (resp.ok) {
+      const dati = await resp.json();
+      caricaDaJson(dati);
+      console.log("✅ Dati caricati da data.json (fallback)");
+      _cacheReady = true;
+      window.dispatchEvent(new CustomEvent("dataReady"));
+      return true;
+    }
+  } catch (e2) {
+    console.warn("Fallback data.json fallito:", e2.message);
+  }
+  // Fallback estremo: dati vuoti
+  _speseCache = {};
+  _entrateCache = {};
+  _categorieCache = getDefaultCategorie();
+  _ricorrentiCache = getDefaultRicorrenti();
+  _cacheReady = true;
+  window.dispatchEvent(new CustomEvent("dataReady"));
+  return false;
 }
 
 // =============================================
@@ -337,7 +605,7 @@ function getSpese(year) {
 async function saveSpese(year, mesi) {
   _speseCache[year] = mesi;
   await salvaSnapshot("spese");
-  await syncSpeseSupabase(year, mesi);
+  await syncSpeseTurso(year, mesi);
 }
 
 function getSpeseMese(year, monthIdx) {
@@ -408,7 +676,7 @@ function getEntrate(year) {
 async function saveEntrate(year, mesi) {
   _entrateCache[year] = mesi;
   await salvaSnapshot("entrate");
-  await syncEntrateSupabase(year, mesi);
+  await syncEntrateTurso(year, mesi);
 }
 
 function getEntrateMese(year, monthIdx) {
@@ -490,14 +758,14 @@ function getCategorie() {
   if (_cacheReady && _categorieCache) {
     return _categorieCache;
   }
-  // Fallback finché Supabase non carica
+  // Fallback finché Turso non carica
   return getDefaultCategorie();
 }
 
 async function saveCategorie(cat) {
   _categorieCache = cat;
   await salvaSnapshot("categorie");
-  await syncCategorieSupabase(cat);
+  await syncCategorieTurso(cat);
 }
 
 async function addCategoria(tipo, descrizione) {
@@ -534,13 +802,14 @@ function getRicorrenti() {
   if (_cacheReady && _ricorrentiCache) {
     return _ricorrentiCache;
   }
+  // Fallback finché Turso non carica
   return getDefaultRicorrenti();
 }
 
 async function saveRicorrenti(ric) {
   _ricorrentiCache = ric;
   await salvaSnapshot("ricorrenti");
-  await syncRicorrentiSupabase(ric);
+  await syncRicorrentiTurso(ric);
 }
 
 async function addRicorrente(tipo, ricorrente) {
@@ -581,7 +850,7 @@ function calcolaDataFineMese(year, month, giorno) {
  * Applica i ricorrenti a tutti gli anni coperti (tra dataInizio e dataFine),
  * creando/aggiornando spese/entrate. Prima rimuove TUTTE le vecchie
  * spese/entrate collegate a ricorrenti (ricId), poi rigenera tutto da capo.
- * Accumula le modifiche e le salva su Supabase in un'unica chiamata per tipo,
+ * Accumula le modifiche e le salva su Turso in un'unica chiamata per tipo,
  * per evitare race condition e sync multipli.
  */
 async function applicaRicorrenti(anno) {
@@ -664,153 +933,190 @@ async function applicaRicorrenti(anno) {
       }
     }
 
-    // Salvataggio per anno su Supabase
+    // Salvataggio per anno su Turso
     await saveSpese(year, speseAggiornate);
     await saveEntrate(year, entrateAggiornate);
   }
 }
 
 // =============================================
-// SYNC SUPABASE
+// SYNC TURSO (DELETE + INSERT con SQL)
 // =============================================
 
-async function syncSpeseSupabase(year, mesi) {
+const INSERT_SPESE_SQL = `INSERT INTO spese
+  (id, data, descrizione, importo, stato, origine, visto_da_desktop, ric_id)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+
+const INSERT_ENTRATE_SQL = `INSERT INTO entrate
+  (id, data, descrizione, importo, stato, origine, visto_da_desktop, ric_id)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+
+async function syncSpeseTurso(year, mesi) {
   try {
-    // Cancella TUTTE le spese dell'anno su Supabase
-    await fetch(
-      `${SUPABASE_URL}/rest/v1/spese?data=gte.${year}-01-01&data=lte.${year}-12-31`,
+    const stmts = [
       {
-        method: "DELETE",
-        headers: {
-          apikey: SUPABASE_ANON_KEY,
-          Authorization: `Bearer ${SUPABASE_ANON_KEY}`
-        }
+        sql: "DELETE FROM spese WHERE data >= ? AND data <= ?",
+        args: [`${year}-01-01`, `${year}-12-31`]
       }
-    );
+    ];
     // Reinserisce quelle correnti
     for (let m = 0; m < 12; m++) {
       for (const s of mesi[m] || []) {
-        const body = {
-          id: s.id,
-          data: s.data,
-          descrizione: s.descrizione,
-          importo: s.importo,
-          stato: s.stato || "preventivata",
-          origine: s.origine || "desktop",
-          visto_da_desktop: s.vistoDaDesktop || false
-        };
-        if (s.ricId) body.ric_id = s.ricId;
-        try {
-          await sb("POST", "spese", { body });
-        } catch (_) {}
+        stmts.push({
+          sql: INSERT_SPESE_SQL,
+          args: [
+            s.id,
+            s.data,
+            s.descrizione,
+            s.importo,
+            s.stato || "preventivata",
+            s.origine || "desktop",
+            s.vistoDaDesktop ? 1 : 0,
+            s.ricId || null
+          ]
+        });
       }
     }
+    await tursoBatch(stmts);
   } catch (e) {
     console.warn("Sync spese fallito:", e.message);
   }
 }
 
-async function syncEntrateSupabase(year, mesi) {
+async function syncEntrateTurso(year, mesi) {
   try {
-    // Cancella TUTTE le entrate dell'anno su Supabase
-    await fetch(
-      `${SUPABASE_URL}/rest/v1/entrate?data=gte.${year}-01-01&data=lte.${year}-12-31`,
+    const stmts = [
       {
-        method: "DELETE",
-        headers: {
-          apikey: SUPABASE_ANON_KEY,
-          Authorization: `Bearer ${SUPABASE_ANON_KEY}`
-        }
+        sql: "DELETE FROM entrate WHERE data >= ? AND data <= ?",
+        args: [`${year}-01-01`, `${year}-12-31`]
       }
-    );
+    ];
     // Reinserisce quelle correnti
     for (let m = 0; m < 12; m++) {
       for (const e of mesi[m] || []) {
-        const body = {
-          id: e.id,
-          data: e.data,
-          descrizione: e.descrizione,
-          importo: e.importo,
-          stato: e.stato || "preventivata",
-          origine: e.origine || "desktop",
-          visto_da_desktop: e.vistoDaDesktop || false
-        };
-        if (e.ricId) body.ric_id = e.ricId;
-        try {
-          await sb("POST", "entrate", { body });
-        } catch (_) {}
+        stmts.push({
+          sql: INSERT_ENTRATE_SQL,
+          args: [
+            e.id,
+            e.data,
+            e.descrizione,
+            e.importo,
+            e.stato || "preventivata",
+            e.origine || "desktop",
+            e.vistoDaDesktop ? 1 : 0,
+            e.ricId || null
+          ]
+        });
       }
     }
+    await tursoBatch(stmts);
   } catch (e) {
     console.warn("Sync entrate fallito:", e.message);
   }
 }
 
-async function syncCategorieSupabase(cat) {
+async function syncCategorieTurso(cat) {
   try {
-    // Cancella TUTTE le categorie su Supabase (id non nullo)
-    await fetch(`${SUPABASE_URL}/rest/v1/categorie?id=not.is.null`, {
-      method: "DELETE",
-      headers: {
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`
-      }
-    });
+    const stmts = [{ sql: "DELETE FROM categorie" }];
     // Reinserisce quelle correnti con campo tipo
     for (const c of cat.entrate || []) {
-      await sb("POST", "categorie", {
-        body: { id: c.id, tipo: "entrate", descrizione: c.descrizione }
+      stmts.push({
+        sql: "INSERT INTO categorie (id, tipo, descrizione) VALUES (?, ?, ?)",
+        args: [c.id, "entrate", c.descrizione]
       });
     }
     for (const c of cat.uscite || []) {
-      await sb("POST", "categorie", {
-        body: { id: c.id, tipo: "uscite", descrizione: c.descrizione }
+      stmts.push({
+        sql: "INSERT INTO categorie (id, tipo, descrizione) VALUES (?, ?, ?)",
+        args: [c.id, "uscite", c.descrizione]
       });
     }
+    await tursoBatch(stmts);
   } catch (e) {
     console.warn("Sync categorie fallito:", e.message);
   }
 }
 
-async function syncRicorrentiSupabase(ric) {
+async function syncRicorrentiTurso(ric) {
   try {
-    // Cancella TUTTI i ricorrenti su Supabase
-    await fetch(`${SUPABASE_URL}/rest/v1/ricorrenti?id=not.is.null`, {
-      method: "DELETE",
-      headers: {
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${SUPABASE_ANON_KEY}`
-      }
-    });
+    const stmts = [{ sql: "DELETE FROM ricorrenti" }];
     // Reinserisce quelli correnti
     for (const r of ric.entrate || []) {
-      await sb("POST", "ricorrenti", {
-        body: {
-          id: r.id,
-          tipo: "entrate",
-          descrizione: r.descrizione,
-          importo: r.importo,
-          giorno: r.giorno || 1,
-          data_inizio: r.dataInizio,
-          data_fine: r.dataFine
-        }
+      stmts.push({
+        sql: "INSERT INTO ricorrenti (id, tipo, descrizione, importo, giorno, data_inizio, data_fine) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        args: [
+          r.id,
+          "entrate",
+          r.descrizione,
+          r.importo,
+          r.giorno || 1,
+          r.dataInizio,
+          r.dataFine
+        ]
       });
     }
     for (const r of ric.uscite || []) {
-      await sb("POST", "ricorrenti", {
-        body: {
-          id: r.id,
-          tipo: "uscite",
-          descrizione: r.descrizione,
-          importo: r.importo,
-          giorno: r.giorno || 1,
-          data_inizio: r.dataInizio,
-          data_fine: r.dataFine
-        }
+      stmts.push({
+        sql: "INSERT INTO ricorrenti (id, tipo, descrizione, importo, giorno, data_inizio, data_fine) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        args: [
+          r.id,
+          "uscite",
+          r.descrizione,
+          r.importo,
+          r.giorno || 1,
+          r.dataInizio,
+          r.dataFine
+        ]
       });
     }
+    await tursoBatch(stmts);
   } catch (e) {
     console.warn("Sync ricorrenti fallito:", e.message);
+  }
+}
+
+// =============================================
+// SCRITTURA COMPLETA SU TURSO
+// =============================================
+
+/**
+ * Scrive TUTTE le cache su Turso (DELETE + INSERT completo).
+ * Usato dalla migrazione una tantum e da ripristinaSnapshot.
+ */
+async function salvaTuttoSuTurso() {
+  await tursoExecute("DELETE FROM spese");
+  await tursoExecute("DELETE FROM entrate");
+  await tursoExecute("DELETE FROM categorie");
+  await tursoExecute("DELETE FROM ricorrenti");
+
+  for (const anno of Object.keys(_speseCache)) {
+    await syncSpeseTurso(anno, _speseCache[anno]);
+  }
+  for (const anno of Object.keys(_entrateCache)) {
+    await syncEntrateTurso(anno, _entrateCache[anno]);
+  }
+  await syncCategorieTurso(_categorieCache);
+  await syncRicorrentiTurso(_ricorrentiCache);
+}
+
+/**
+ * Elimina da Turso le voci con gli id indicati (spese ed entrate).
+ * Usato dalla pagina Impostazioni per la cancellazione mirata.
+ */
+async function tursoDeleteByIds(idsSpese, idsEntrate) {
+  if (idsSpese && idsSpese.size > 0) {
+    const ids = [...idsSpese];
+    await tursoExecute(
+      `DELETE FROM spese WHERE id IN (${ids.map(() => "?").join(",")})`,
+      ids
+    );
+  }
+  if (idsEntrate && idsEntrate.size > 0) {
+    const ids = [...idsEntrate];
+    await tursoExecute(
+      `DELETE FROM entrate WHERE id IN (${ids.map(() => "?").join(",")})`,
+      ids
+    );
   }
 }
 
@@ -829,38 +1135,45 @@ const MAX_SNAPSHOTS = 10;
 async function salvaSnapshot(op) {
   console.log("Snapshot salvato:", op || "modifica");
   try {
-    const body = {
-      id: generaId("snap"),
-      timestamp: new Date().toISOString(),
-      operazione: op || "modifica",
-      spese: JSON.stringify(_speseCache),
-      entrate: JSON.stringify(_entrateCache),
-      categorie: JSON.stringify(_categorieCache),
-      ricorrenti: JSON.stringify(_ricorrentiCache),
-      dati: JSON.stringify({
-        spese: _speseCache,
-        entrate: _entrateCache,
-        categorie: _categorieCache,
-        ricorrenti: _ricorrentiCache
-      })
-    };
-    await sb("POST", "snapshot_storico", { body });
+    const timestamp = new Date().toISOString();
+    const spese = JSON.stringify(_speseCache);
+    const entrate = JSON.stringify(_entrateCache);
+    const categorie = JSON.stringify(_categorieCache);
+    const ricorrenti = JSON.stringify(_ricorrentiCache);
+    const dati = JSON.stringify({
+      spese: _speseCache,
+      entrate: _entrateCache,
+      categorie: _categorieCache,
+      ricorrenti: _ricorrentiCache
+    });
+
+    await tursoExecute(
+      `INSERT INTO snapshot_storico
+        (id, timestamp, operazione, spese, entrate, categorie, ricorrenti, dati, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        generaId("snap"),
+        timestamp,
+        op || "modifica",
+        spese,
+        entrate,
+        categorie,
+        ricorrenti,
+        dati,
+        timestamp
+      ]
+    );
 
     // Mantiene solo i MAX_SNAPSHOTS più recenti
     try {
-      const tutti = await sb("GET", "snapshot_storico", {
-        params: { select: "id", order: "timestamp.desc" }
-      });
+      const tutti = await tursoFetchAll(
+        "SELECT id FROM snapshot_storico ORDER BY timestamp DESC"
+      );
       const daEliminare = (tutti || []).slice(MAX_SNAPSHOTS);
-      if (daEliminare.length > 0) {
-        const ids = daEliminare.map((s) => s.id).join(",");
-        await fetch(`${SUPABASE_URL}/rest/v1/snapshot_storico?id=in.(${ids})`, {
-          method: "DELETE",
-          headers: {
-            apikey: SUPABASE_ANON_KEY,
-            Authorization: `Bearer ${SUPABASE_ANON_KEY}`
-          }
-        });
+      for (const s of daEliminare) {
+        await tursoExecute("DELETE FROM snapshot_storico WHERE id = ?", [
+          s.id
+        ]);
       }
     } catch (_) {}
   } catch (e) {
@@ -873,13 +1186,10 @@ async function salvaSnapshot(op) {
  */
 async function getSnapshotList() {
   try {
-    return await sb("GET", "snapshot_storico", {
-      params: {
-        select: "*",
-        order: "timestamp.desc",
-        limit: String(MAX_SNAPSHOTS)
-      }
-    });
+    return await tursoFetchAll(
+      "SELECT * FROM snapshot_storico ORDER BY timestamp DESC LIMIT ?",
+      [MAX_SNAPSHOTS]
+    );
   } catch (e) {
     console.warn("getSnapshotList fallito:", e.message);
     return [];
@@ -888,13 +1198,14 @@ async function getSnapshotList() {
 
 /**
  * Ripristina uno snapshot: sovrascrive le 4 cache in memoria e riscrive
- * tutto su Supabase tramite le sync.
+ * tutto su Turso tramite le sync.
  */
 async function ripristinaSnapshot(id) {
   try {
-    const rows = await sb("GET", "snapshot_storico", {
-      params: { select: "*", id: `eq.${id}` }
-    });
+    const rows = await tursoFetchAll(
+      "SELECT * FROM snapshot_storico WHERE id = ?",
+      [id]
+    );
     if (!rows || rows.length === 0) return false;
 
     const snap = rows[0];
@@ -904,15 +1215,8 @@ async function ripristinaSnapshot(id) {
     _ricorrentiCache = JSON.parse(snap.ricorrenti);
     _cacheReady = true;
 
-    // Riscrive tutto su Supabase
-    for (const anno of Object.keys(_speseCache)) {
-      await syncSpeseSupabase(anno, _speseCache[anno]);
-    }
-    for (const anno of Object.keys(_entrateCache)) {
-      await syncEntrateSupabase(anno, _entrateCache[anno]);
-    }
-    await syncCategorieSupabase(_categorieCache);
-    await syncRicorrentiSupabase(_ricorrentiCache);
+    // Riscrive tutto su Turso
+    await salvaTuttoSuTurso();
 
     window.dispatchEvent(new CustomEvent("dataReady"));
     return true;
@@ -932,23 +1236,18 @@ async function ripristinaSnapshot(id) {
  */
 async function getVociMobileNonViste() {
   try {
+    await quandoTursoPronto();
     const [spese, entrate] = await Promise.all([
-      sb("GET", "spese", {
-        params: {
-          select: "id,data,descrizione,importo,ric_id",
-          origine: "eq.mobile",
-          visto_da_desktop: "eq.false",
-          order: "data.asc"
-        }
-      }),
-      sb("GET", "entrate", {
-        params: {
-          select: "id,data,descrizione,importo,ric_id",
-          origine: "eq.mobile",
-          visto_da_desktop: "eq.false",
-          order: "data.asc"
-        }
-      })
+      tursoFetchAll(
+        `SELECT id, data, descrizione, importo, ric_id
+         FROM spese WHERE origine = 'mobile' AND visto_da_desktop = 0
+         ORDER BY data ASC`
+      ),
+      tursoFetchAll(
+        `SELECT id, data, descrizione, importo, ric_id
+         FROM entrate WHERE origine = 'mobile' AND visto_da_desktop = 0
+         ORDER BY data ASC`
+      )
     ]);
     const voci = [];
     for (const s of spese) {
@@ -971,7 +1270,7 @@ async function getVociMobileNonViste() {
         ric_id: e.ric_id || null
       });
     }
-    voci.sort((a, b) => a.data.localeCompare(b.data));
+    voci.sort((a, b) => String(a.data).localeCompare(String(b.data)));
     return voci;
   } catch (e) {
     console.warn("Errore getVociMobileNonViste:", e.message);
@@ -981,26 +1280,23 @@ async function getVociMobileNonViste() {
 
 /**
  * Segna come viste dal desktop le voci mobile indicate
- * (imposta visto_da_desktop = true). Da chiamare dopo la chiusura del modale.
+ * (imposta visto_da_desktop = 1). Da chiamare dopo la chiusura del modale.
  */
 async function segnaVociMobileComeViste(ids) {
   if (!ids || ids.length === 0) return;
-  const headers = {
-    apikey: SUPABASE_ANON_KEY,
-    Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-    "Content-Type": "application/json",
-    Prefer: "return=minimal"
-  };
-  const idList = ids.join(",");
-  const body = JSON.stringify({ visto_da_desktop: true });
+  await quandoTursoPronto();
+  const idList = [...new Set(ids)];
+  const placeholders = idList.map(() => "?").join(",");
   try {
-    await fetch(
-      `${SUPABASE_URL}/rest/v1/spese?origine=eq.mobile&visto_da_desktop=eq.false&id=in.(${idList})`,
-      { method: "PATCH", headers, body }
+    await tursoExecute(
+      `UPDATE spese SET visto_da_desktop = 1
+       WHERE origine = 'mobile' AND visto_da_desktop = 0 AND id IN (${placeholders})`,
+      idList
     );
-    await fetch(
-      `${SUPABASE_URL}/rest/v1/entrate?origine=eq.mobile&visto_da_desktop=eq.false&id=in.(${idList})`,
-      { method: "PATCH", headers, body }
+    await tursoExecute(
+      `UPDATE entrate SET visto_da_desktop = 1
+       WHERE origine = 'mobile' AND visto_da_desktop = 0 AND id IN (${placeholders})`,
+      idList
     );
   } catch (e) {
     console.warn("Errore segnaVociMobileComeViste:", e.message);
@@ -1008,7 +1304,7 @@ async function segnaVociMobileComeViste(ids) {
 }
 
 // =============================================
-// INIT — Carica da Supabase all'avvio
+// INIT — Carica da Turso all'avvio
 // =============================================
 
 caricaDaSupabase();

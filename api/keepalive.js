@@ -1,36 +1,54 @@
 /* =============================================
-   GeoGestioneSpese — Keepalive Supabase
+   GeoGestioneSpese — Keepalive Turso
    =============================================
    Funzione serverless (Vercel Cron) che esegue una
-   chiamata REST a Supabase per impedire che il
-   progetto free vada in "pausa" per inattività.
+   chiamata leggera a Turso (SELECT 1) per impedire che
+   il database free vada in "pausa" per inattività.
    Chiamata da vercel.json -> crons (es. 1x/giorno).
    ============================================= */
 
-const SUPABASE_URL = "https://pxbgbzizfrojbmvvtpzc.supabase.co";
-const SUPABASE_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB4Ymdieml6ZnJvamJtdnZ0cHpjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzMjY4NDUsImV4cCI6MjEwMDkwMjg0NX0.sybF0NAU_p-UghS0ckLSYa0yEVjT97EzJYnZ_4H9gtw";
+// Turso: usa TURSO_URL e TURSO_TOKEN dalle variabili d'ambiente (Vercel/.env)
+function normalizzaTursoUrl(url) {
+  if (url && url.startsWith("libsql://")) {
+    return "https://" + url.slice("libsql://".length);
+  }
+  return url;
+}
+
+const TURSO_URL = normalizzaTursoUrl(process.env.TURSO_URL || "");
+const TURSO_TOKEN = process.env.TURSO_TOKEN || "";
 
 module.exports = async function handler(req, res) {
   try {
-    // Richiesta leggera: una sola riga dalla tabella spese
-    const resp = await fetch(
-      `${SUPABASE_URL}/rest/v1/spese?select=id&limit=1`,
-      {
-        headers: {
-          apikey: SUPABASE_ANON_KEY,
-          Authorization: `Bearer ${SUPABASE_ANON_KEY}`
-        }
-      }
-    );
+    if (!TURSO_URL || !TURSO_TOKEN) {
+      throw new Error("TURSO_URL / TURSO_TOKEN non configurati");
+    }
+
+    // Richiesta leggera: SELECT 1 via SQL over HTTP (/v2/pipeline)
+    const resp = await fetch(`${TURSO_URL}/v2/pipeline`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${TURSO_TOKEN}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        requests: [
+          {
+            type: "execute",
+            stmt: { sql: "SELECT 1", args: [], named_args: [] }
+          },
+          { type: "close" }
+        ]
+      })
+    });
 
     if (!resp.ok) {
-      console.warn(`keepalive: Supabase ha risposto ${resp.status}`);
+      console.warn(`keepalive: Turso ha risposto ${resp.status}`);
       res.status(502).json({ ok: false, status: resp.status });
       return;
     }
 
-    res.status(200).json({ ok: true, supabase: "active" });
+    res.status(200).json({ ok: true, turso: "active" });
   } catch (e) {
     console.error("keepalive: errore", e.message);
     res.status(500).json({ ok: false, error: e.message });
